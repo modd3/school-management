@@ -5,3 +5,5 @@ const classSchema = new mongoose.Schema({
     streams: [{ type: String }], // e.g., ['A', 'B', 'C'] or ['East', 'West']
     classTeacher: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' } // Link to the class teacher
 }, { timestamps: true });
+
+module.exports = mongoose.model('Class', classSchema);

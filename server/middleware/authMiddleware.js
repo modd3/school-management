@@ -27,13 +27,15 @@ const protect = asyncHandler(async (req, res, next) => {
             // Populate the specific profile (Teacher, Student, Parent, etc.)
             // based on the role and profileId stored in the User model
             const profileModelName = req.user.roleMapping;
-            if (profileModelName) {
-                req.user.profile = await mongoose.model(profileModelName).findById(req.user.profileId);
-                if (!req.user.profile) {
-                    return res.status(401).json({ message: 'Not authorized, user profile not found' });
+            if (req.user.role !== 'admin') {
+                if (profileModelName && req.user.profileId) {
+                    req.user.profile = await mongoose.model(profileModelName).findById(req.user.profileId);
+                    if (!req.user.profile) {
+                        return res.status(401).json({ message: 'Not authorized, user profile not found' });
+                    }
+                } else {
+                    return res.status(401).json({ message: 'Not authorized, user role mapping missing' });
                 }
-            } else {
-                 return res.status(401).json({ message: 'Not authorized, user role mapping missing' });
             }
 
             next(); // Proceed to the next middleware/route handler

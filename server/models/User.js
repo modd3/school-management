@@ -11,8 +11,15 @@ const userSchema = new mongoose.Schema({
         enum: ['admin', 'principal', 'deputy_principal', 'class_teacher', 'subject_teacher', 'parent', 'student'],
         required: true
     },
-    profileId: { type: mongoose.Schema.Types.ObjectId, required: true, refPath: 'roleMapping' },
-    roleMapping: { type: String, required: true } // Stores the name of the referenced model (e.g., 'Teacher', 'Parent', 'Student')
+    profileId: {
+        type: mongoose.Schema.Types.ObjectId,
+        refPath: 'roleMapping',
+        //required: function() { return this.role !== 'admin'; }
+    },
+    roleMapping: {
+        type: String,
+        required: function() { return this.role !== 'admin'; }
+    } // Stores the name of the referenced model (e.g., 'Teacher', 'Parent', 'Student')
 }, { timestamps: true });
 
 // Hash password before saving

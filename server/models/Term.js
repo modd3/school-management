@@ -7,3 +7,5 @@ const termSchema = new mongoose.Schema({
     endDate: { type: Date, required: true },
     isCurrent: { type: Boolean, default: false } // To easily identify the active term
 }, { timestamps: true });
+
+module.exports = mongoose.model('Term', termSchema);

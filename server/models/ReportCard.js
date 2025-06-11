@@ -25,3 +25,5 @@ const reportCardSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 reportCardSchema.index({ student: 1, term: 1 }, { unique: true });
+
+module.exports = mongoose.model('ReportCard', reportCardSchema);

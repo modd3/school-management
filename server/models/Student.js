@@ -14,3 +14,6 @@ const studentSchema = new mongoose.Schema({
     studentPhotoUrl: { type: String },
     isActive: { type: Boolean, default: true }
 }, { timestamps: true });
+
+module.exports = mongoose.model('Student', studentSchema);
+// This model represents a student in the school management system.

@@ -10,3 +10,6 @@ const resultSchema = new mongoose.Schema({
     comment: { type: String },     // Teacher's comment for this subject
     // classPosition and streamPosition will be on the ReportCard or calculated dynamically
 }, { timestamps: true });
+
+
+module.exports = mongoose.model('Result', resultSchema);
