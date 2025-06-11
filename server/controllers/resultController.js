@@ -124,7 +124,7 @@ exports.addSubjectComment = async (req, res) => {
         // Optional: Further authorization - check if the teacher making the request
         // is assigned to the subject corresponding to this result.
         const subject = await Subject.findById(result.subject);
-        if (!subject.assignedTeachers.includes(req.user.profileId)) {  req.user.profileId assumes teacher's _id
+        if (!subject.assignedTeachers.includes(req.user.profileId)) {  req.user.profileId //assumes teacher's _id
              return res.status(403).json({ message: 'Unauthorized to comment on this result' });
          }
 

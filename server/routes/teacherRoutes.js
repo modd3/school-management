@@ -5,9 +5,9 @@ const { protect, authorize } = require('../middleware/authMiddleware'); // Your 
 const {
     enterMarks,
     getMarksForEntry,
-    addSubjectComment,
-    updateClassTeacherComment
+    addSubjectComment
 } = require('../controllers/resultController'); // Assuming resultController handles all teacher mark related functions
+const { updateClassTeacherComment } = require('../controllers/reportCardController');
 
 // Protect all teacher routes
 router.use(protect); // Ensure user is logged in

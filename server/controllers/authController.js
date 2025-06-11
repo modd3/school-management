@@ -4,13 +4,14 @@ const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
 const Parent = require('../models/Parent');
 const asyncHandler = require('express-async-handler'); // For handling async errors
+const ms = require('ms'); // For handling time in milliseconds
 
 // Helper function to send token in cookie
 const sendTokenResponse = (user, statusCode, res) => {
     const token = user.getSignedJwtToken();
 
     const options = {
-        expires: new Date(Date.now() + process.env.JWT_EXPIRE * 24 * 60 * 60 * 1000), // Convert days to milliseconds
+        expires: new Date(Date.now() + ms(process.env.JWT_EXPIRE)), // Convert days to milliseconds
         httpOnly: true // Prevent client-side JS from accessing token
     };
 

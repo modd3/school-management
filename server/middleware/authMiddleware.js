@@ -2,6 +2,7 @@
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler'); // For handling async errors without try/catch in every middleware
 const User = require('../models/User'); // Assuming your User model is here
+const mongoose = require('mongoose'); // For model population
 
 // Protect routes: Verifies JWT token and attaches user to request
 const protect = asyncHandler(async (req, res, next) => {

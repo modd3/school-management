@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+
 const termSchema = new mongoose.Schema({
     name: { type: String, required: true }, // e.g., "Term 1", "Term 2"
     academicYear: { type: String, required: true }, // e.g., "2024/2025"

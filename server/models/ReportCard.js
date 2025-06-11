@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+
 const reportCardSchema = new mongoose.Schema({
     student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
     term: { type: mongoose.Schema.Types.ObjectId, ref: 'Term', required: true },
