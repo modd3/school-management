@@ -5,6 +5,8 @@ const Student = require('../models/Student');
 const Parent = require('../models/Parent');
 const asyncHandler = require('express-async-handler'); // For handling async errors
 const ms = require('ms'); // For handling time in milliseconds
+const crypto = require('crypto'); // For generating secure tokens
+const sendEmail = require('../utils/email'); // For sending emails
 
 // Helper function to send token in cookie
 const sendTokenResponse = (user, statusCode, res) => {
@@ -130,4 +132,111 @@ exports.getMe = asyncHandler(async (req, res) => {
         success: true,
         user: req.user // Contains basic user data + populated profile
     });
+});
+
+
+// @desc    Forgot password
+// @route   POST /api/auth/forgotpassword
+// @access  Public
+exports.forgotPassword = asyncHandler(async (req, res, next) => {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+        return res.status(404).json({ message: 'There is no user with that email address' });
+    }
+
+    // Get reset token
+    const resetToken = user.getResetPasswordToken();
+    await user.save({ validateBeforeSave: false });
+
+    // Create reset URL pointing to your frontend form
+    const resetURL = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+    const message = `
+        <p>You are receiving this email because you (or someone else) has requested the reset of a password.</p>
+        <p>Please click on the following link, or paste this into your browser to complete the process:</p>
+        <p><a href="${resetURL}">${resetURL}</a></p>
+        <p>This link will expire in 10 minutes.</p>
+        <p>If you did not request this, please ignore this email and your password will remain unchanged.</p>
+    `;
+
+    try {
+        await sendEmail({
+            email: user.email,
+            subject: 'Your Password Reset Request (valid for 10 minutes)',
+            html: message // Send as HTML
+        });
+
+        res.status(200).json({ success: true, message: 'Password reset email sent successfully. Please check your inbox.' });
+    } catch (err) {
+        console.error("Error sending email:", err);
+        user.passwordResetToken = undefined;
+        user.passwordResetExpires = undefined;
+        await user.save({ validateBeforeSave: false });
+
+        return res.status(500).json({ message: 'Error sending password reset email. Please try again later.' });
+    }
+});
+
+// @desc    Reset password
+// @route   PATCH /api/auth/resetpassword/:resettoken
+// @access  Public
+exports.resetPassword = asyncHandler(async (req, res, next) => {
+    // Get hashed token
+    const resetToken = crypto.createHash('sha256').update(req.params.resettoken).digest('hex');
+
+    const user = await User.findOne({
+        passwordResetToken: resetToken,
+        passwordResetExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+        return res.status(400).json({ message: 'Invalid or expired token. Please request a new password reset.' });
+    }
+
+    if (req.body.password !== req.body.passwordConfirm) {
+        return res.status(400).json({ message: 'Passwords do not match.' });
+    }
+
+    // Set new password
+    user.password = req.body.password;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save(); // This will trigger the password hashing middleware
+
+    // After successfully resetting, you can either:
+    // 1. Automatically log them in (generate and send new JWT via cookie)
+    // 2. Just send a success message and let the frontend redirect them to the login page.
+    // For simplicity and security, it's often better to just send a success message
+    // and let the frontend handle the redirect to the login page for a fresh login.
+
+    // Option 2 (Recommended for a clearer flow):
+    res.status(200).json({ success: true, message: 'Password reset successfully. You can now log in with your new password.' });
+
+    // If you want to automatically log them in (Option 1 - remove the above res.status line):
+    /*
+    const token = user.getSignedJwtToken();
+    const cookieOptions = {
+        expires: new Date(Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
+        httpOnly: true,
+    };
+    if (process.env.NODE_ENV === 'production') {
+        cookieOptions.secure = true;
+    }
+    res
+        .status(200)
+        .cookie('token', token, cookieOptions)
+        .json({
+            success: true,
+            token,
+            user: {
+                _id: user._id,
+                email: user.email,
+                role: user.role,
+                // ... other user details you want to send ...
+            },
+            message: 'Password reset successfully and logged in.'
+        });
+    */
 });

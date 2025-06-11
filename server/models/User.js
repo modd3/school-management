@@ -2,6 +2,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken'); // Import JWT
+const crypto = require('crypto'); // Import crypto for password reset token generation
 
 const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
@@ -19,7 +20,9 @@ const userSchema = new mongoose.Schema({
     roleMapping: {
         type: String,
         required: function() { return this.role !== 'admin'; }
-    } // Stores the name of the referenced model (e.g., 'Teacher', 'Parent', 'Student')
+    }, // Stores the name of the referenced model (e.g., 'Teacher', 'Parent', 'Student')
+    passwordResetToken: String,
+    passwordResetExpires: Date,
 }, { timestamps: true });
 
 // Hash password before saving
@@ -42,6 +45,19 @@ userSchema.methods.getSignedJwtToken = function() {
     return jwt.sign({ id: this._id, role: this.role }, process.env.JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRE
     });
+};
+// Method to generate and hash a password reset token
+userSchema.methods.getResetPasswordToken = function() {
+    // Generate the random token
+    const resetToken = crypto.randomBytes(20).toString('hex');
+
+    // Hash the token and set to passwordResetToken field
+    this.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    // Set token expire time (e.g., 10 minutes)
+    this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+
+    return resetToken; // Return the *unhashed* token (we'll need this to send in the email)
 };
 
 module.exports = mongoose.model('User', userSchema);
