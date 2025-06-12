@@ -1,0 +1,12 @@
+/* src/index.css */
+
+/* Tailwind CSS directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Any very custom global styles not easily covered by Tailwind,
+  or font imports, could go here.
+  However, for most styling, you will now use Tailwind utility classes directly in your JSX.
+*/

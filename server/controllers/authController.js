@@ -123,6 +123,25 @@ exports.login = asyncHandler(async (req, res) => {
     sendTokenResponse(user, 200, res);
 });
 
+// @desc    Log user out / Clear cookie
+// @route   GET /api/auth/logout
+// @access  Private (though usually just a redirect for logged in users)
+exports.logoutUser = asyncHandler(async (req, res, next) => {
+    // Clear the JWT cookie
+    res.cookie('token', 'none', {
+        expires: new Date(Date.now() + 10 * 1000), // Expire in 10 seconds (effectively immediate)
+        httpOnly: true,
+        // If your frontend and backend are on different domains (e.g., localhost:3000 and localhost:5000),
+        // you might need to specify sameSite: 'none' and secure: true for production.
+        // For local development with different ports, this can be tricky.
+        // If you face issues, ensure sameSite is correctly set based on your setup.
+        // sameSite: 'strict', // Or 'lax', or 'none' (with secure: true)
+        // secure: process.env.NODE_ENV === 'production', // Use secure cookies in production (HTTPS)
+    });
+
+    res.status(200).json({ success: true, message: 'Logged out successfully' });
+});
+
 // @desc    Get current logged in user
 // @route   GET /api/auth/me
 // @access  Private
