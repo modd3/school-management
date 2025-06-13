@@ -19,7 +19,8 @@ const userSchema = new mongoose.Schema({
     },
     roleMapping: {
         type: String,
-        required: function() { return this.role !== 'admin'; }
+        required: function() { return this.role !== 'admin'; },
+        enum: ['Teacher', 'Student', 'Parent', 'User']
     }, // Stores the name of the referenced model (e.g., 'Teacher', 'Parent', 'Student')
     passwordResetToken: String,
     passwordResetExpires: Date,

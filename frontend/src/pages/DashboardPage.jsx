@@ -1,7 +1,7 @@
-// src/pages/DashboardPage.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+// Assuming logoutUser from '../api/auth' is now simply `logout` from useAuth()
 import {
   FaSignOutAlt,
   FaUserCircle,
@@ -14,17 +14,18 @@ import {
   FaClipboardList,
   FaBookOpen,
   FaFileAlt,
+  FaCalendarAlt, // Import the calendar icon for terms
 } from 'react-icons/fa';
 
 const DashboardPage = () => {
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuth(); // Use logout from AuthContext
 
   // Role-based dashboard sections
   const renderRoleActions = (role) => {
     switch (role) {
       case 'admin':
         return (
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Link to="/admin/create-user" className="dashboard-link">
               <FaUserPlus className="inline-block mr-2" />
               Create User
@@ -48,6 +49,11 @@ const DashboardPage = () => {
             <Link to="/admin/subjects" className="dashboard-link">
               <FaBookOpen className="inline-block mr-2" />
               Manage Subjects
+            </Link>
+            {/* NEW LINK FOR MANAGE TERMS */}
+            <Link to="/admin/terms" className="dashboard-link">
+              <FaCalendarAlt className="inline-block mr-2" />
+              Manage Terms
             </Link>
           </div>
         );
@@ -124,7 +130,7 @@ const DashboardPage = () => {
     }
   };
 
-  // Helper to render role description
+  // Helper to render role description (unchanged from previous)
   const renderRoleSpecificContent = (role) => {
     switch (role) {
       case 'admin':
@@ -161,6 +167,11 @@ const DashboardPage = () => {
     }
   };
 
+  // Use the logout from AuthContext, which now handles clearing localStorage token
+  const handleLogout = async () => {
+    await logout();
+  };
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl text-center">
@@ -177,7 +188,7 @@ const DashboardPage = () => {
             {renderRoleSpecificContent(user.role)}
             {renderRoleActions(user.role)}
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className="mt-6 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200 flex items-center justify-center mx-auto"
             >
               <FaSignOutAlt className="mr-2" /> Logout
@@ -188,23 +199,23 @@ const DashboardPage = () => {
         )}
       </div>
       <style>{`
-        .dashboard-link {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #f3f4f6;
-          color: #2563eb;
-          padding: 1rem;
-          border-radius: 0.5rem;
-          font-weight: 500;
-          text-decoration: none;
-          transition: background 0.2s, color 0.2s;
-        }
-        .dashboard-link:hover {
-          background: #2563eb;
-          color: #fff;
-        }
-      `}</style>
+  .dashboard-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f3f4f6;
+    color: #2563eb;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+  }
+  .dashboard-link:hover {
+    background: #2563eb;
+    color: #fff;
+  }
+`}</style>
     </div>
   );
 };

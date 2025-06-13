@@ -21,9 +21,8 @@ exports.uploadImage = asyncHandler(async (req, res) => {
         // req.file will contain file information.
         // Construct the URL to access the image.
         // For local storage, it will be something like '/uploads/filename.jpg'
-        const fileUrl = `/uploads/${req.file.filename}`; // This assumes '/uploads' is publicly accessible.
-                                                        // We'll need to configure server.js for this.
-
+        const fileUrl = `/uploads/${req.file.filename}`; 
+        
         res.status(200).json({
             success: true,
             message: 'File uploaded successfully',

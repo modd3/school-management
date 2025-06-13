@@ -112,7 +112,7 @@ router.get('/terms/:id', getTermById);
 router.put('/terms/:id', updateTerm);
 router.delete('/terms/:id', deleteTerm); // Deactivates term
 
-// 8. Report Card / Publishing (Your existing route)
+// 8. Report Card / Publishing 
 router.post('/reports/publish-term-results/:termId', publishTermResults);
 
 

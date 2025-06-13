@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
   const checkAuthStatus = async () => {
     try {
       setLoading(true);
-      const profile = await getProfile(); // Fetch profile to see if user is logged in
+      const profile = await getProfile(token); // Fetch profile to see if user is logged in
       setUser(profile.user); // Assuming backend sends { success: true, user: {...} }
     } catch (err) {
       console.error("Auth check failed:", err.message);
@@ -34,8 +34,11 @@ export const AuthProvider = ({ children }) => {
     try {
       // The backend sets httpOnly cookie, so the response might just be success message
       const response = await loginUser(email, password);
+      // On login success:
+      localStorage.setItem('token', response.token);
       // We need to fetch profile after login to get user data if not returned directly
-      const profile = await getProfile();
+      const token = localStorage.getItem('token');
+      const profile = await getProfile(token);
       setUser(profile.user);
       navigate('/dashboard'); // Redirect to dashboard on successful login
       return { success: true, message: response.message || 'Login successful' };

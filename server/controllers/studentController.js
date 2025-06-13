@@ -135,7 +135,7 @@ exports.getAllStudents = asyncHandler(async (req, res) => {
     const students = await Student.find({})
                                 .populate('currentClass', 'name') // Populate class name
                                 .populate('parentContacts', 'firstName lastName phoneNumber') // Populate parent info
-                                .populate('userId', 'email role isActive'); // Populate associated user info
+                                //.populate('userId', 'email role isActive'); // Populate associated user info
     res.status(200).json({ success: true, count: students.length, students });
 });
 
@@ -146,7 +146,7 @@ exports.getStudentById = asyncHandler(async (req, res) => {
     const student = await Student.findById(req.params.id)
                                 .populate('currentClass', 'name streams')
                                 .populate('parentContacts', 'firstName lastName phoneNumber email')
-                                .populate('userId', 'email role isActive');
+                               // .populate('userId', 'email role isActive');
 
     if (!student) {
         return res.status(404).json({ message: 'Student not found.' });
@@ -158,7 +158,7 @@ exports.getStudentById = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/students/:id
 // @access  Private (Admin)
 exports.updateStudent = asyncHandler(async (req, res) => {
-    const { currentClass, parentContactIds, email, password, isActive, ...updateData } = req.body;
+    const { currentClass, parentContacts, email, password, isActive, ...updateData } = req.body;
     const studentId = req.params.id;
 
     const student = await Student.findById(studentId);

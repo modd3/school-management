@@ -30,15 +30,7 @@ exports.getAllUsers = asyncHandler(async (req, res) => {
     // Populate profile based on roleMapping for each user
     const users = await User.find({})
                             .select('-password') // Don't return passwords
-                            .populate({
-                                path: 'profileId',
-                                // The model name for population is dynamic, based on user.roleMapping
-                                // We use a function here because Mongoose needs to know which model
-                                // to populate based on the current document's 'roleMapping' field.
-                                model: function(doc) {
-                                    return doc.roleMapping;
-                                }
-                            });
+                            .populate('profileId');
     res.status(200).json({ success: true, count: users.length, users });
 });
 
@@ -48,12 +40,7 @@ exports.getAllUsers = asyncHandler(async (req, res) => {
 exports.getUserById = asyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id)
                             .select('-password') // Don't return password
-                            .populate({
-                                path: 'profileId',
-                                model: function(doc) {
-                                    return doc.roleMapping;
-                                }
-                            });
+                            .populate('profileId');
 
     if (!user) {
         return res.status(404).json({ message: 'User not found' });
@@ -102,10 +89,7 @@ exports.updateUser = asyncHandler(async (req, res) => {
     // Re-fetch user with populated profile to send back
     const updatedUser = await User.findById(userId)
                                   .select('-password')
-                                  .populate({
-                                      path: 'profileId',
-                                      model: function(doc) { return doc.roleMapping; }
-                                  });
+                                  .populate('profileId');
 
     res.status(200).json({ success: true, message: 'User account updated successfully', user: updatedUser });
 });

@@ -25,14 +25,20 @@ export const loginUser = async (email, password) => {
 };
 
 export const registerUser = async (userData) => {
-  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+  const token = localStorage.getItem('token');
+  const response = await fetch(`${API_BASE_URL}/admin/users/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
     },
     body: JSON.stringify(userData),
   });
-  return handleResponse(response);
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to register user');
+  }
+  return response.json();
 };
 
 export const forgotPassword = async (email) => {
@@ -58,22 +64,26 @@ export const resetPassword = async (token, password, passwordConfirm) => {
 };
 
 export const logoutUser = async () => {
-    // Backend's logout endpoint clears the httpOnly cookie
-    const response = await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: 'POST', 
-    });
-    return handleResponse(response);
+  const token = localStorage.getItem('token'); // <-- get token here
+  const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+    },
+  });
+  localStorage.removeItem('token'); // Remove token after logout
+  return response.json();
 };
 
 // Function to fetch user profile (to verify login status)
-export const getProfile = async () => {
-    // Since our backend uses httpOnly cookies, the browser automatically sends the cookie.
-    // No need to manually add Authorization header here.
+export const getProfile = async (token) => {
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
-        },
+            'Authorization': `Bearer ${token}` // <-- Add this line
+        }
     });
     return handleResponse(response);
 };
