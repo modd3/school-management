@@ -16,9 +16,9 @@ import ManageTeachersPage from './pages/admin/ManageTeachersPage';
 import ManageClassesPage from './pages/admin/ManageClassesPage';
 import ManageSubjectsPage from './pages/admin/ManageSubjectsPage';
 import ManageTermsPage from './pages/admin/ManageTermsPage'; 
-
+import EditUserPage from './pages/admin/EditUserPage'; 
 // Add this import
-import DashboardLink from './components/DashboardLink';
+import DashboardLinkWrapper from './components/DashboardLinkWrapper';
 
 // A simple Protected Route component (make sure this is robust in your actual app)
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -45,11 +45,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 };
 
 function App() {
-  const location = useLocation(); // Use React Router's location
-
-  // Define routes where DashboardLink should NOT appear
-  const hideDashboardLinkRoutes = ['/dashboard', '/login', '/register'];
-
+  
   return (
     <Router
       future={{
@@ -60,7 +56,7 @@ function App() {
       <AuthProvider>
         <div className="App">
           {/* Show DashboardLink on all pages except dashboard, login, and register */}
-          {!hideDashboardLinkRoutes.includes(location.pathname) && <DashboardLink />}
+          <DashboardLinkWrapper />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} /> {/* Keep for now, but remember it's admin-only backend */}
@@ -134,6 +130,15 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <ManageTermsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/users/edit/:userId" // NEW ROUTE
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <EditUserPage />
                 </ProtectedRoute>
               }
             />

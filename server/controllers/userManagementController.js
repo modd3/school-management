@@ -160,11 +160,10 @@ exports.updateUserRole = asyncHandler(async (req, res) => {
 });
 
 
-// @desc    Delete (Deactivate) a user account (admin view)
+// @desc    Delete a user account (admin view, hard delete)
 // @route   DELETE /api/admin/users/:id
 // @access  Private (Admin)
-// This implements a soft delete by setting isActive to false.
-// It also attempts to deactivate the associated profile.
+// This now performs a hard delete and prevents admin from deleting their own account.
 exports.deleteUser = asyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id);
 
@@ -174,33 +173,23 @@ exports.deleteUser = asyncHandler(async (req, res) => {
 
     // Prevent admin from deleting or deactivating their own account via this endpoint
     if (user._id.toString() === req.user.id.toString()) {
-        return res.status(400).json({ message: 'Admin cannot delete or deactivate their own account via this endpoint.' });
+        return res.status(400).json({ message: 'Admin cannot delete their own account via this endpoint.' });
     }
 
-    // Soft delete the User account
-    user.isActive = false; // Assuming you have an `isActive` field on your User model
-    await user.save();
+    // Hard delete the User account
+    await User.findByIdAndDelete(user._id);
 
-    // Attempt to deactivate the associated profile (Teacher, Student, Parent, etc.)
+    // Optionally, hard delete the associated profile (Teacher, Student, Parent, etc.)
     if (user.profileId && user.roleMapping && user.roleMapping !== 'User') {
         try {
             const ProfileModel = mongoose.model(user.roleMapping);
-            const profile = await ProfileModel.findById(user.profileId);
-            if (profile) {
-                // Check if the profile schema has an 'isActive' field to soft delete it
-                if ('isActive' in profile.schema.paths) {
-                    profile.isActive = false;
-                    await profile.save();
-                    console.log(`Associated profile (${user.roleMapping}) for user ${user._id} deactivated.`);
-                } else {
-                    console.warn(`Associated profile model ${user.roleMapping} does not have an 'isActive' field for soft deletion.`);
-                }
-            }
+            await ProfileModel.findByIdAndDelete(user.profileId);
+            console.log(`Associated profile (${user.roleMapping}) for user ${user._id} deleted.`);
         } catch (err) {
-            console.error(`Error deactivating associated profile for user ${user._id}: ${err.message}`);
+            console.error(`Error deleting associated profile for user ${user._id}: ${err.message}`);
             // Continue, but log the error
         }
     }
 
-    res.status(200).json({ success: true, message: 'User account and associated profile (if applicable) deactivated successfully.' });
+    res.status(200).json({ success: true, message: 'User account and associated profile (if applicable) deleted successfully.' });
 });

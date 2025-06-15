@@ -1,35 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import { FaLaptopHouse, FaEdit, FaTrashAlt, FaSearch, FaPlusCircle } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import { getClasses, createClass, deleteClass } from '../../api/classes'; // Import real API calls
+import { getClasses, createClass, deleteClass, assignClassTeacher } from '../../api/classes'; // Add assignClassTeacher API
+import { getTeachers } from '../../api/teachers'; // You need to implement this API call
 
 export default function ManageClassesPage() {
   const [classes, setClasses] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [newClassName, setNewClassName] = useState('');
   const navigate = useNavigate();
 
-  // Function to load classes from the API
+  // Load classes and teachers on mount
+  useEffect(() => {
+    loadClasses();
+    loadTeachers();
+  }, []);
+
   const loadClasses = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getClasses(); // Use the real API call
-      setClasses(data.classes || []); // Assuming your backend returns { success: true, classes: [...] }
+      const data = await getClasses();
+      setClasses(data.classes || []);
     } catch (err) {
-      console.error("Failed to load classes:", err);
       setError(err.message || 'Failed to load classes.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Load classes on component mount
-  useEffect(() => {
-    loadClasses();
-  }, []);
+  const loadTeachers = async () => {
+    try {
+      const data = await getTeachers();
+      // Only class teachers
+      setTeachers((data.teachers || []).filter(t => t.teacherType === 'class_teacher'));
+    } catch (err) {
+      // Optionally handle error
+      console.log(err)
+    }
+  };
+
+  const handleAssignTeacher = async (classId, teacherId) => {
+    try {
+      await assignClassTeacher(classId, teacherId);
+      loadClasses(); // Refresh classes to show updated teacher
+    } catch (err) {
+      setError('Failed to assign class teacher.');
+    }
+  };
 
   const handleAddClass = async (e) => {
     e.preventDefault();
@@ -68,7 +89,7 @@ export default function ManageClassesPage() {
 
   const filteredClasses = classes.filter(_class =>
     (_class.name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
-    (_class.classTeacher?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) || '') || // Assuming classTeacher is an object
+    (_class.classTeacher?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
     (_class.classTeacher?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) || '')
   );
 
@@ -141,7 +162,20 @@ export default function ManageClassesPage() {
                 {filteredClasses.map((_class) => (
                   <tr key={_class._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{_class.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{_class.classTeacher ? `${_class.classTeacher.firstName} ${_class.classTeacher.lastName}` : 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <select
+                        value={_class.classTeacher?._id || ''}
+                        onChange={e => handleAssignTeacher(_class._id, e.target.value)}
+                        className="py-1 px-2 border rounded"
+                      >
+                        <option value="">Assign Class Teacher</option>
+                        {teachers.map(teacher => (
+                          <option key={teacher._id} value={teacher._id}>
+                            {teacher.firstName} {teacher.lastName}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-center space-x-2">
                       <button
                         onClick={() => handleEditClass(_class._id)}

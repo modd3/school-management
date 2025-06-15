@@ -43,9 +43,13 @@ const sendTokenResponse = (user, statusCode, res) => {
 exports.register = asyncHandler(async (req, res) => {
     const { email, password, role, profileData } = req.body;
 
+    // Get firstName and lastName from profileData if not at top level
+    const firstName = req.body.firstName || (profileData && profileData.firstName);
+    const lastName = req.body.lastName || (profileData && profileData.lastName);
+
     // Basic validation
-    if (!email || !password || !role || !profileData) {
-        return res.status(400).json({ message: 'Please enter all required fields: email, password, role, and profileData.' });
+    if (!email || !password || !role || !profileData || !firstName || !lastName) {
+        return res.status(400).json({ message: 'Please enter all required fields: firstName, lastName, email, password, role, and profileData.' });
     }
 
     // Determine which profile model to create based on the role
@@ -57,10 +61,7 @@ exports.register = asyncHandler(async (req, res) => {
             profileModel = null; // Admins might not need a separate profile doc in the same way
             profileMapping = 'User'; // Or create an 'Admin' model if needed
             break;
-        case 'principal':
-        case 'deputy_principal':
-        case 'class_teacher':
-        case 'subject_teacher':
+        case 'teacher':
             profileModel = Teacher;
             profileMapping = 'Teacher';
             break;
@@ -77,7 +78,7 @@ exports.register = asyncHandler(async (req, res) => {
     }
 
     // Create the User first
-    const user = await User.create({ email, password, role, roleMapping: profileMapping });
+    const user = await User.create({ firstName, lastName, email, password, role, roleMapping: profileMapping });
 
     // Create the associated profile document
     if (profileModel) {

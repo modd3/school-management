@@ -39,7 +39,71 @@ export default function CreateUserPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prevState => ({ ...prevState, [name]: value }));
+
+    // If the role changes, reset role-specific fields
+    if (name === "role") {
+      let resetFields = {};
+      if (value === "teacher") {
+        resetFields = {
+          staffId: "",
+          teacherType: "",
+          phoneNumber: "",
+          // Remove student/parent fields
+          dateOfBirth: "",
+          gender: "",
+          parentContacts: "",
+          stream: "",
+          studentPhotoUrl: "",
+        };
+      } else if (value === "student") {
+        resetFields = {
+          // Remove teacher/parent fields
+          staffId: "",
+          teacherType: "",
+          phoneNumber: "",
+          // Student fields
+          dateOfBirth: "",
+          gender: "",
+          parentContacts: "",
+          stream: "",
+          studentPhotoUrl: "",
+        };
+      } else if (value === "parent") {
+        resetFields = {
+          // Remove teacher/student fields
+          staffId: "",
+          teacherType: "",
+          dateOfBirth: "",
+          gender: "",
+          parentContacts: "",
+          stream: "",
+          studentPhotoUrl: "",
+          phoneNumber: "",
+        };
+      } else {
+        // For admin or other roles, clear all role-specific fields
+        resetFields = {
+          staffId: "",
+          teacherType: "",
+          phoneNumber: "",
+          dateOfBirth: "",
+          gender: "",
+          parentContacts: "",
+          stream: "",
+          studentPhotoUrl: "",
+        };
+      }
+      setFormData((prev) => ({
+        ...prev,
+        role: value,
+        ...resetFields,
+      }));
+    } else {
+      setFormData((prevState) => ({
+        ...prevState,
+        [name]: value,
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -61,7 +125,7 @@ export default function CreateUserPage() {
       lastName: formData.lastName,
     };
 
-    if (formData.role === 'subject_teacher' || formData.role === 'class_teacher') {
+    if (formData.role === 'teacher') {
       // Example: add staffId and phoneNumber if you have those fields in your form
       if (formData.staffId) profileData.staffId = formData.staffId;
       if (formData.teacherType) profileData.teacherType = formData.teacherType;
@@ -69,7 +133,6 @@ export default function CreateUserPage() {
       if (formData.email) profileData.email = formData.email; // <-- add this line
     }
     if (formData.role === 'student') {
-      if (formData.admissionNumber) profileData.admissionNumber = formData.admissionNumber;
       if (formData.dateOfBirth) profileData.dateOfBirth = formData.dateOfBirth;
       if (formData.gender) profileData.gender = formData.gender;
       if (formData.parentContacts) profileData.parentContacts = formData.parentContacts;
@@ -193,10 +256,10 @@ export default function CreateUserPage() {
               onChange={handleChange}
               className="pl-10 w-full py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white text-gray-800"
             >
+              <option value="" disabled defaultValue hidden>Select User Role(Default: Student)</option>
               <option value="student">Student</option>
               <option value="parent">Parent</option>
-              <option value="subject_teacher">Subject Teacher</option>
-              <option value="class_teacher">Class Teacher</option>
+              <option value="teacher">Teacher</option>
               <option value="admin">Admin</option> {/* Admins can create other admins */}
             </select>
             {/* Custom arrow for select dropdown */}
@@ -204,7 +267,7 @@ export default function CreateUserPage() {
               <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 6.757 7.586 5.343 9l4.95 4.95z"/></svg>
             </div>
           </div>
-          {(formData.role === 'subject_teacher' || formData.role === 'class_teacher' || formData.role === 'principal' || formData.role === 'deputy_principal') && (
+          {(formData.role === 'teacher') && (
             <div className="relative">
               <FaUser className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400" size={20}/>
               <select
@@ -222,7 +285,7 @@ export default function CreateUserPage() {
               </select>
             </div>
           )}
-          {(formData.role === 'subject_teacher' || formData.role === 'class_teacher') && (
+          {(formData.teacherType === 'subject_teacher' || formData.teacherType === 'class_teacher' || formData.teacherType === 'principal' || formData.teacherType === 'deputy_principal') && (
             <>
               <div className="relative">
                 <FaUser className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400" size={20}/>
@@ -263,17 +326,6 @@ export default function CreateUserPage() {
           )}
           {formData.role === 'student' && (
             <>
-              <div className="relative">
-                <input
-                  type="text"
-                  name="admissionNumber"
-                  placeholder="Admission Number"
-                  value={formData.admissionNumber || ''}
-                  onChange={handleChange}
-                  className="pl-3 w-full py-2.5 border border-gray-300 rounded-lg"
-                  required
-                />
-              </div>
               <div className="relative">
                 <input
                   type="date"

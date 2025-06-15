@@ -26,7 +26,7 @@ export const getUsers = async () => {
 
 // Fetch a single user by ID
 export const getUserById = async (id) => {
-    const response = await fetch(`${API_BASE_URL}admin/users/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
         method: 'GET',
         headers: getAuthHeaders(),
         credentials: 'include',

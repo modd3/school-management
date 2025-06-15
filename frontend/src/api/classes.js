@@ -65,3 +65,17 @@ export const deleteClass = async (id) => {
     });
     return handleResponse(response);
 };
+
+export const assignClassTeacher = async (classId, teacherId) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE_URL}/admin/classes/${classId}/assign-teacher`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({ teacherId }),
+    });
+    if (!res.ok) throw new Error('Failed to assign class teacher');
+    return res.json();
+};

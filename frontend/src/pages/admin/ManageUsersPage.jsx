@@ -107,25 +107,27 @@ export default function ManageUsersPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredUsers.map((user) => (
-                  <tr key={user._id} className="hover:bg-gray-50">
+                  <tr key={user._id} className="hover:bg-gray-50 group">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{user.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">{user.role?.replace('_', ' ')}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-center space-x-2">
-                      <button
-                        onClick={() => handleEditUser(user._id)}
-                        className="text-blue-600 hover:text-blue-900 p-2 rounded-full hover:bg-blue-100 transition-colors"
-                        title="Edit User"
-                      >
-                        <FaEdit size={18}/>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user._id)}
-                        className="text-red-600 hover:text-red-900 p-2 rounded-full hover:bg-red-100 transition-colors"
-                        title="Delete User"
-                      >
-                        <FaTrashAlt size={18}/>
-                      </button>
+                      <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleEditUser(user._id)}
+                          className="text-blue-600 hover:text-blue-900 p-2 rounded-full hover:bg-blue-100 transition-colors"
+                          title="Edit User"
+                        >
+                          <FaEdit size={18}/>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(user._id)}
+                          className="text-red-600 hover:text-red-900 p-2 rounded-full hover:bg-red-100 transition-colors"
+                          title="Delete User"
+                        >
+                          <FaTrashAlt size={18}/>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

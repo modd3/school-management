@@ -118,10 +118,22 @@ export default function ManageTeachersPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredTeachers.map((teacher) => (
                   <tr key={teacher._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{teacher.firstName} {teacher.lastName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {teacher.firstName} {teacher.lastName}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{teacher.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{teacher.teacherId}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{teacher.subjects?.map(sub => sub.name).join(', ') || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{teacher.staffId}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {teacher.subjectsTaught && teacher.subjectsTaught.length > 0
+                        ? teacher.subjectsTaught
+                            .map(sub =>
+                              typeof sub === 'string'
+                                ? sub // fallback if not populated
+                                : sub.code // if populated with subject object
+                            )
+                            .join(', ')
+                        : 'N/A'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-center space-x-2">
                       <button
                         onClick={() => handleEditTeacher(teacher._id)}

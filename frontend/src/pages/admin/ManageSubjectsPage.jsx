@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaBookOpen, FaEdit, FaTrashAlt, FaSearch, FaPlusCircle } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { getSubjects, createSubject, deleteSubject } from '../../api/subjects'; 
+import { getTeachers } from '../../api/teachers'; // Make sure you have this API
 
 export default function ManageSubjectsPage() {
   const [subjects, setSubjects] = useState([]);
@@ -9,6 +10,10 @@ export default function ManageSubjectsPage() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [newSubjectName, setNewSubjectName] = useState('');
+  const [newSubjectCode, setNewSubjectCode] = useState('');
+  const [newSubjectDescription, setNewSubjectDescription] = useState('');
+  const [newAssignedTeachers, setNewAssignedTeachers] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const navigate = useNavigate();
 
   // Function to load subjects from the API
@@ -31,20 +36,40 @@ export default function ManageSubjectsPage() {
     loadSubjects();
   }, []);
 
+  // Load teachers for assignment
+  useEffect(() => {
+    async function fetchTeachers() {
+      try {
+        const data = await getTeachers();
+        setTeachers(data.teachers || []);
+      } catch (err) {
+        // Optionally handle error
+      }
+    }
+    fetchTeachers();
+  }, []);
+
   const handleAddSubject = async (e) => {
     e.preventDefault();
-    if (!newSubjectName.trim()) {
-      setError("Subject name cannot be empty.");
+    if (!newSubjectName.trim() || !newSubjectCode.trim()) {
+      setError("Subject name and code are required.");
       return;
     }
     try {
-      const newSubjectData = { name: newSubjectName.trim() };
-      const data = await createSubject(newSubjectData); // Use the real API call
-      setSubjects([...subjects, data.subject]); // Assuming backend returns { success: true, subject: { ... } }
-      setNewSubjectName(''); // Clear input field
+      const newSubjectData = {
+        name: newSubjectName.trim(),
+        code: newSubjectCode.trim(),
+        description: newSubjectDescription.trim(),
+        assignedTeachers: newAssignedTeachers,
+      };
+      const data = await createSubject(newSubjectData);
+      setSubjects([...subjects, data.subject]);
+      setNewSubjectName('');
+      setNewSubjectCode('');
+      setNewSubjectDescription('');
+      setNewAssignedTeachers([]);
       setError(null);
     } catch (err) {
-      console.error("Failed to add subject:", err);
       setError(err.message || 'Failed to add subject.');
     }
   };
@@ -105,7 +130,7 @@ export default function ManageSubjectsPage() {
           </div>
         </div>
 
-        <form onSubmit={handleAddSubject} className="mb-8 flex flex-col sm:flex-row gap-4">
+        <form onSubmit={handleAddSubject} className="mb-8 flex flex-col sm:flex-row gap-4 flex-wrap">
           <input
             type="text"
             placeholder="New Subject Name (e.g., Chemistry)"
@@ -114,6 +139,39 @@ export default function ManageSubjectsPage() {
             className="flex-grow py-2 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
+          <input
+            type="text"
+            placeholder="Subject Code (e.g., CHEM101)"
+            value={newSubjectCode}
+            onChange={(e) => setNewSubjectCode(e.target.value)}
+            className="flex-grow py-2 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+          <input
+            type="text"
+            placeholder="Description (optional)"
+            value={newSubjectDescription}
+            onChange={(e) => setNewSubjectDescription(e.target.value)}
+            className="flex-grow py-2 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            maxLength={500}
+          />
+          <select
+            multiple
+            value={newAssignedTeachers}
+            onChange={e =>
+              setNewAssignedTeachers(Array.from(e.target.selectedOptions, option => option.value))
+            }
+            className="flex-grow py-2 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="" disabled>
+              Assign Teachers
+            </option>
+            {teachers.map(teacher => (
+              <option key={teacher._id} value={teacher._id}>
+                {teacher.firstName} {teacher.lastName}
+              </option>
+            ))}
+          </select>
           <button
             type="submit"
             className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors duration-200"
@@ -132,6 +190,7 @@ export default function ManageSubjectsPage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject Code</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject Teacher(s)</th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -140,6 +199,11 @@ export default function ManageSubjectsPage() {
                   <tr key={subject._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{subject.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{subject.code}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {subject.assignedTeachers && subject.assignedTeachers.length > 0
+                        ? subject.assignedTeachers.map(t => `${t.firstName} ${t.lastName}`).join(', ')
+                        : '—'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-center space-x-2">
                       <button
                         onClick={() => handleEditSubject(subject._id)}

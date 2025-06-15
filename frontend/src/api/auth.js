@@ -34,6 +34,7 @@ export const registerUser = async (userData) => {
     },
     body: JSON.stringify(userData),
   });
+  console.log(userData);
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.message || 'Failed to register user');

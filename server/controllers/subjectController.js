@@ -1,5 +1,5 @@
 const Subject = require('../models/Subject');
-const Teacher = require('../models/Teacher'); // Potentially needed for linking/validation
+const Teacher = require('../models/Teacher');
 const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
 
@@ -15,9 +15,9 @@ exports.createSubject = asyncHandler(async (req, res) => {
     }
 
     // Check if a subject with the same name or code already exists
-    const existingSubject = await Subject.findOne({ $or: [{ name: name }, { code: code }] });
+    const existingSubject = await Subject.findOne({ code: code });
     if (existingSubject) {
-        return res.status(400).json({ message: 'Subject with this name or code already exists.' });
+        return res.status(400).json({ message: 'Subject with this code already exists.' });
     }
 
     // Validate and link assignedTeachers if provided
@@ -51,7 +51,9 @@ exports.createSubject = asyncHandler(async (req, res) => {
         );
     }
 
-    res.status(201).json({ success: true, message: 'Subject created successfully', subject });
+    // Optionally populate assignedTeachers for response
+    await subject.populate('assignedTeachers', 'firstName lastName staffId');
+    res.status(201).json({ success: true, subject });
 });
 
 // @desc    Get all Subjects
@@ -155,15 +157,15 @@ exports.updateSubject = asyncHandler(async (req, res) => {
 // @access  Private (Admin)
 // This implements a soft delete by setting isActive to false.
 exports.deleteSubject = asyncHandler(async (req, res) => {
-    const subject = await Subject.findById(req.params.id);
+    const subject = await Subject.findByIdAndDelete(req.params.id);
 
     if (!subject) {
         return res.status(404).json({ message: 'Subject not found.' });
     }
 
     // Soft delete the Subject
-    subject.isActive = false; // Assuming isActive field on Subject model
-    await subject.save();
+   // subject.isActive = false; // Assuming isActive field on Subject model
+    // await subject.save();
 
     // Optionally, remove this subject from all teachers' subjectsTaught arrays
     await Teacher.updateMany(

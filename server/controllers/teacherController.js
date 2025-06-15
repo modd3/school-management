@@ -273,24 +273,24 @@ exports.updateTeacher = asyncHandler(async (req, res) => {
 // @access  Private (Admin)
 // This implements a soft delete by setting isActive to false.
 exports.deleteTeacher = asyncHandler(async (req, res) => {
-    const teacher = await Teacher.findById(req.params.id);
+    const teacher = await Teacher.findByIdAndDelete(req.params.id);
 
     if (!teacher) {
         return res.status(404).json({ message: 'Teacher not found.' });
     }
 
     // Soft delete the Teacher profile
-    teacher.isActive = false; // Assuming isActive field on Teacher model
-    await teacher.save();
+    //teacher.isActive = false; // Assuming isActive field on Teacher model
+    //await teacher.save();
 
     // Optionally, also deactivate the associated User account
-    if (teacher.userId) {
+  /*  if (teacher.userId) {
         const user = await User.findById(teacher.userId);
         if (user) {
             user.isActive = false; // Assuming isActive field on User model
             await user.save();
         }
-    }
+    } */
 
     // Remove this teacher from all subjects' assignedTeachers arrays
     if (teacher.subjectsTaught && teacher.subjectsTaught.length > 0) {

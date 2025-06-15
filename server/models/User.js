@@ -5,11 +5,12 @@ const jwt = require('jsonwebtoken'); // Import JWT
 const crypto = require('crypto'); // Import crypto for password reset token generation
 
 const userSchema = new mongoose.Schema({
-    email: { type: String, required: true, unique: true },
+    firstName: { type: String, required: true },
+    lastName: { type: String, required: true },    email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     role: {
         type: String,
-        enum: ['admin', 'principal', 'deputy_principal', 'class_teacher', 'subject_teacher', 'parent', 'student'],
+        enum: ['admin', 'teacher', 'parent', 'student'],
         required: true
     },
     profileId: {
