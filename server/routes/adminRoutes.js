@@ -39,7 +39,7 @@ const {
 
 // Subject Management (CRUD)
 const {
-    createSubject, getAllSubjects, getSubjectById, updateSubject, deleteSubject
+    createSubject, getAllSubjects, getSubjectById, updateSubject, updateSubjectTeachers, deleteSubject
 } = require('../controllers/subjectController');
 
 // Term Management (CRUD)
@@ -102,6 +102,7 @@ router.put('/classes/:classId/assign-teacher', assignClassTeacher); // Assign a 
 router.post('/subjects', createSubject);
 router.get('/subjects', getAllSubjects);
 router.get('/subjects/:id', getSubjectById);
+router.put('/subjects/:id/teachers', updateSubjectTeachers);
 router.put('/subjects/:id', updateSubject);
 router.delete('/subjects/:id', deleteSubject); // Deactivates subject
 

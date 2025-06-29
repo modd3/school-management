@@ -12,10 +12,13 @@ const {
     getPublishedResultsForClass
 } = require('../controllers/resultController');
 const { updateClassTeacherComment } = require('../controllers/reportCardController');
+const { getAllStudents } = require('../controllers/studentController');
+const { getAllSubjects } = require('../controllers/subjectController');
+const { getAllTerms } = require('../controllers/termController');
 
 // Protect all teacher routes
 router.use(protect);
-router.use(authorize(['class_teacher', 'subject_teacher', 'principal', 'deputy_principal']));
+router.use(authorize(['teacher, admin']));
 
 // Enter marks for a student
 router.post('/results/enter', enterMarks);
@@ -44,5 +47,10 @@ router.put(
     authorize(['class_teacher', 'admin']),
     updateClassTeacherComment
 );
+
+// Allow both teachers and admins to access
+router.get('/students', authorize(['class_teacher', 'subject_teacher', 'principal', 'deputy_principal']),getAllStudents);
+router.get('/subjects', authorize(['class_teacher', 'subject_teacher', 'principal', 'deputy_principal']),getAllSubjects);
+router.get('/terms', authorize(['class_teacher', 'subject_teacher', 'principal', 'deputy_principal']),getAllTerms);
 
 module.exports = router;

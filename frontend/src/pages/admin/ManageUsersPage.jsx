@@ -15,7 +15,7 @@ export default function ManageUsersPage() {
     setLoading(true);
     setError(null); // Clear previous errors
     try {
-      const data = await getUsers(); // Use the real API call
+      const data = await getUsers();
       // Assuming the backend returns an object like { success: true, users: [...] }
       setUsers(data.users || []);
     } catch (err) {

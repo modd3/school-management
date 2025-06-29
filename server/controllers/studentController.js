@@ -5,126 +5,116 @@ const Parent = require('../models/Parent'); // For managing parent-student relat
 const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose'); // For ObjectId validation
 
-// Helper to generate admission number (e.g., ADM/YYYY/XXX)
-// This function could be part of a utility file or remain here.
-async function generateAdmissionNumber() {
-    const currentYear = new Date().getFullYear().toString();
-    // Find the highest admission number for the current year
-    const lastStudent = await Student.findOne({
-        admissionNumber: new RegExp(`^ADM/${currentYear}/`)
-    }).sort({ admissionNumber: -1 }); // Sort descending to get the last one
-
-    let nextId = 1;
-    if (lastStudent) {
-        // Extract the numeric part (e.g., "001" from "ADM/2024/001")
-        const lastNum = parseInt(lastStudent.admissionNumber.split('/')[2], 10);
-        nextId = lastNum + 1;
-    }
-    const paddedId = String(nextId).padStart(3, '0'); // Pad with leading zeros (e.g., 001, 010, 100)
-    return `ADM/${currentYear}/${paddedId}`;
-}
 
 // @desc    Add a new student
 // @route   POST /api/admin/students
 // @access  Private (Admin)
 exports.createStudent = asyncHandler(async (req, res) => {
-    const {
-        firstName, lastName, otherNames, dateOfBirth, gender,
-        currentClass, stream, parentContactIds, studentPhotoUrl,
-        email, password // For optional creation of associated User account
-    } = req.body;
+    try {
+        const {
+            firstName, lastName, otherNames, dateOfBirth, gender,
+            currentClass, stream, parentContactIds, studentPhotoUrl,
+            email, password // For optional creation of associated User account
+        } = req.body;
 
-    // Basic validation for Student profile
-    if (!firstName || !lastName || !dateOfBirth || !gender) {
-        return res.status(400).json({ message: 'Missing required student fields: firstName, lastName, dateOfBirth, gender.' });
-    }
-
-    // Validation for currentClass (if provided during creation)
-    if (currentClass) {
-        if (!mongoose.Types.ObjectId.isValid(currentClass)) {
-            return res.status(400).json({ message: 'Invalid currentClass ID format.' });
+        // Basic validation for Student profile
+        if (!firstName || !lastName || !dateOfBirth || !gender) {
+            return res.status(400).json({ message: 'Missing required student fields: firstName, lastName, dateOfBirth, gender.' });
         }
-        const existingClass = await Class.findById(currentClass);
-        if (!existingClass) {
-            return res.status(404).json({ message: 'Assigned Class not found.' });
-        }
-    }
 
-    // Validation for optional User account creation
-    if (email && !password) {
-        return res.status(400).json({ message: 'If providing an email, a password must also be provided to create a user account for the student.' });
-    }
-
-    // Validate and link parents if provided
-    if (parentContactIds && parentContactIds.length > 0) {
-        if (!Array.isArray(parentContactIds)) {
-            return res.status(400).json({ message: 'parentContactIds must be an array of parent IDs.' });
-        }
-        for (const parentId of parentContactIds) {
-            if (!mongoose.Types.ObjectId.isValid(parentId)) {
-                return res.status(400).json({ message: `Invalid parent ID format: ${parentId}` });
+        // Validation for currentClass (if provided during creation)
+        if (currentClass) {
+            if (!mongoose.Types.ObjectId.isValid(currentClass)) {
+                return res.status(400).json({ message: 'Invalid currentClass ID format.' });
             }
-            const parent = await Parent.findById(parentId);
-            if (!parent) {
-                return res.status(404).json({ message: `Parent with ID ${parentId} not found.` });
+            const existingClass = await Class.findById(currentClass);
+            if (!existingClass) {
+                return res.status(404).json({ message: 'Assigned Class not found.' });
             }
         }
-    }
 
-    // Generate admission number
-    const admissionNumber = await generateAdmissionNumber();
-
-    let user = null;
-    if (email && password) {
-        // Check if a user with this email already exists
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ message: 'A user account with this email already exists.' });
+        // Validation for optional User account creation
+        if (email && !password) {
+            return res.status(400).json({ message: 'If providing an email, a password must also be provided to create a user account for the student.' });
         }
-        // Create an associated User account for the student
-        user = await User.create({
-            email,
-            password,
-            role: 'student', // Default role for a student account
-            roleMapping: 'Student' // Links to the Student profile model
+
+        // Validate and link parents if provided
+        if (parentContactIds && parentContactIds.length > 0) {
+            if (!Array.isArray(parentContactIds)) {
+                return res.status(400).json({ message: 'parentContactIds must be an array of parent IDs.' });
+            }
+            for (const parentId of parentContactIds) {
+                if (!mongoose.Types.ObjectId.isValid(parentId)) {
+                    return res.status(400).json({ message: `Invalid parent ID format: ${parentId}` });
+                }
+                const parent = await Parent.findById(parentId);
+                if (!parent) {
+                    return res.status(404).json({ message: `Parent with ID ${parentId} not found.` });
+                }
+            }
+        }
+
+
+        let user = null;
+        if (email && password) {
+            // Check if a user with this email already exists
+            const existingUser = await User.findOne({ email });
+            if (existingUser) {
+                return res.status(400).json({ message: 'A user account with this email already exists.' });
+            }
+            // Create an associated User account for the student
+            user = await User.create({
+                email,
+                password,
+                role: 'student', // Default role for a student account
+                roleMapping: 'Student' // Links to the Student profile model
+            });
+        }
+
+        // Create student profile
+        const student = await Student.create({
+            firstName,
+            lastName,
+            otherNames,
+            dateOfBirth,
+            gender,
+            currentClass: currentClass || undefined,
+            stream: stream || undefined,
+            parentContacts: parentContactIds || [],
+            studentPhotoUrl: studentPhotoUrl || undefined,
+            userId: user?._id    // Link to user if created
         });
+
+        // If a User account was created, link its profileId to this Student profile
+        if (user) {
+            user.profileId = student._id;
+            await user.save();
+        }
+
+        // If a class was provided, add student to that class's students array
+        if (currentClass) {
+            await Class.findByIdAndUpdate(currentClass, { $addToSet: { students: student._id } });
+        }
+
+        // If parents were provided, link this student to their children array
+        if (parentContactIds && parentContactIds.length > 0) {
+            await Parent.updateMany(
+                { _id: { $in: parentContactIds } },
+                { $addToSet: { children: student._id } }
+            );
+        }
+
+        res.status(201).json({ success: true, message: 'Student created successfully', student });
+    } catch (error) {
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation Error',
+                error: error.message
+            });
+        }
+        throw error; // Let the asyncHandler catch other errors
     }
-
-    // Create student profile
-    const student = await Student.create({
-        firstName,
-        lastName,
-        otherNames,
-        admissionNumber,
-        dateOfBirth,
-        gender,
-        currentClass: currentClass || undefined, // Assign class if provided
-        stream: stream || undefined,
-        parentContacts: parentContactIds || [], // Initialize with provided parents or empty array
-        studentPhotoUrl: studentPhotoUrl || undefined,
-        userId: user ? user._id : undefined // Link to the created User account
-    });
-
-    // If a User account was created, link its profileId to this Student profile
-    if (user) {
-        user.profileId = student._id;
-        await user.save();
-    }
-
-    // If a class was provided, add student to that class's students array
-    if (currentClass) {
-        await Class.findByIdAndUpdate(currentClass, { $addToSet: { students: student._id } });
-    }
-
-    // If parents were provided, link this student to their children array
-    if (parentContactIds && parentContactIds.length > 0) {
-        await Parent.updateMany(
-            { _id: { $in: parentContactIds } },
-            { $addToSet: { children: student._id } }
-        );
-    }
-
-    res.status(201).json({ success: true, message: 'Student created successfully', student });
 });
 
 
@@ -133,9 +123,9 @@ exports.createStudent = asyncHandler(async (req, res) => {
 // @access  Private (Admin)
 exports.getAllStudents = asyncHandler(async (req, res) => {
     const students = await Student.find({})
-                                .populate('currentClass', 'name') // Populate class name
-                                .populate('parentContacts', 'firstName lastName phoneNumber') // Populate parent info
-                                //.populate('userId', 'email role isActive'); // Populate associated user info
+                                .populate('userId', '-password') // Populate user details
+                                .populate('currentClass')        // If you need class details
+                                .populate('parentContacts');     // If you need parent details
     res.status(200).json({ success: true, count: students.length, students });
 });
 

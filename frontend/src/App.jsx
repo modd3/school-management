@@ -17,8 +17,11 @@ import ManageClassesPage from './pages/admin/ManageClassesPage';
 import ManageSubjectsPage from './pages/admin/ManageSubjectsPage';
 import ManageTermsPage from './pages/admin/ManageTermsPage'; 
 import EditUserPage from './pages/admin/EditUserPage'; 
+import EditStudentPage from './pages/admin/EditStudentPage'; // Import EditStudentPage
 // Add this import
 import DashboardLinkWrapper from './components/DashboardLinkWrapper';
+import EnterMarksPage from './pages/teacher/EnterMarksPage';
+import ReportCardPage from './pages/teacher/ReportCardPage';
 
 // A simple Protected Route component (make sure this is robust in your actual app)
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -70,7 +73,7 @@ function App() {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute allowedRoles={['admin', 'class_teacher', 'subject_teacher', 'student', 'parent']}>
+                <ProtectedRoute allowedRoles={['admin', 'teacher', 'student', 'parent']}>
                   <DashboardPage />
                 </ProtectedRoute>
               }
@@ -142,26 +145,26 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/admin/students/edit/:studentId"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <EditStudentPage />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Placeholder for other roles' routes */}
             {/* Example: Teacher Routes (add more as you implement pages) */}
-            {/* <Route
+            <Route
               path="/teacher/enter-marks"
               element={
-                <ProtectedRoute allowedRoles={['class_teacher', 'subject_teacher']}>
+                <ProtectedRoute allowedRoles={['teacher']}>
                   <EnterMarksPage />
                 </ProtectedRoute>
               }
-            /> */}
-            {/* Example: Student Routes */}
-            {/* <Route
-              path="/student/results"
-              element={
-                <ProtectedRoute allowedRoles={['student']}>
-                  <MyResultsPage />
-                </ProtectedRoute>
-              }
-            /> */}
+            />
+        
 
             {/* Catch-all for undefined routes */}
             <Route path="*" element={<div className="text-center mt-20 text-gray-700">404 - Page Not Found</div>} />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getUserById, updateUser } from '../../api/users'; // You must implement these
+import { getUserById, updateUser } from '../../api/users'; 
 import { getAllParents } from '../../api/parents';
 import {
   FaUserEdit, FaEnvelope, FaLock, FaUser, FaBriefcase
@@ -20,22 +20,25 @@ export default function EditUserPage() {
     async function fetchData() {
       try {
         const person = await getUserById(userId);
-        const user = person.user.profileId;
+        const user = person.user;
+        console.log(person);
+        // Use profileId if it exists, otherwise use user fields
+        const profile = user.profileId || {};
         setFormData({
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          roleMapping: person.user.roleMapping,
-          // Profile fields (if any)
-          staffId: user.staffId || "",
-          teacherType: user.teacherType || "",
-          phoneNumber: user.phoneNumber || "",
-          dateOfBirth: user.dateOfBirth ? user.dateOfBirth.slice(0, 10) : "",
-          gender: user.gender || "",
-          parentContacts: user.parentContacts || [],
-          stream: user.stream || "",
-          studentPhotoUrl: user.studentPhotoUrl || "",
+          firstName: profile.firstName || user.firstName || "",
+          lastName: profile.lastName || user.lastName || "",
+          email: user.email || "",
+          roleMapping: user.roleMapping,
+          staffId: profile.staffId || "",
+          teacherType: profile.teacherType || "",
+          phoneNumber: profile.phoneNumber || "",
+          dateOfBirth: profile.dateOfBirth ? profile.dateOfBirth.slice(0, 10) : "",
+          gender: profile.gender || "",
+          parentContacts: profile.parentContacts || [],
+          stream: profile.stream || "",
+          studentPhotoUrl: profile.studentPhotoUrl || "",
         });
+        
         const parentsRes = await getAllParents();
         setParentOptions(parentsRes.parents || []);
       } catch (err) {
@@ -53,9 +56,9 @@ export default function EditUserPage() {
       let resetFields = {};
       if (value === "teacher") {
         resetFields = {
-          staffId: "",
-          teacherType: "",
-          phoneNumber: "",
+          //staffId: "",
+          //teacherType: "",
+          //phoneNumber: "",
           dateOfBirth: "",
           gender: "",
           parentContacts: "",
@@ -67,11 +70,11 @@ export default function EditUserPage() {
           staffId: "",
           teacherType: "",
           phoneNumber: "",
-          dateOfBirth: "",
-          gender: "",
-          parentContacts: "",
-          stream: "",
-          studentPhotoUrl: "",
+          //dateOfBirth: "",
+         // gender: "",
+         // parentContacts: "",
+          //stream: "",
+         // studentPhotoUrl: "",
         };
       } else if (value === "parent") {
         resetFields = {
@@ -82,7 +85,7 @@ export default function EditUserPage() {
           parentContacts: "",
           stream: "",
           studentPhotoUrl: "",
-          phoneNumber: "",
+         // phoneNumber: "",
         };
       } else {
         resetFields = {
@@ -107,7 +110,7 @@ export default function EditUserPage() {
         [name]: value,
       }));
     }
-  };
+  }; 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -120,11 +123,15 @@ export default function EditUserPage() {
       firstName: formData.firstName,
       lastName: formData.lastName,
     };
+    let userRole = '';
+    if (formData.roleMapping === 'Teacher') userRole = 'teacher';
+    if (formData.roleMapping === 'Student') userRole = 'student';
+    if (formData.roleMapping === 'Parent') userRole = 'parent';
+
     if (formData.roleMapping === 'Teacher') {
       if (formData.staffId) profileData.staffId = formData.staffId;
       if (formData.teacherType) profileData.teacherType = formData.teacherType;
       if (formData.phoneNumber) profileData.phoneNumber = formData.phoneNumber;
-      if (formData.roleMapping) profileData.roleMapping === formData.roleMapping;
     }
     if (formData.roleMapping === 'Student') {
       if (formData.dateOfBirth) profileData.dateOfBirth = formData.dateOfBirth;
@@ -137,11 +144,13 @@ export default function EditUserPage() {
       if (formData.phoneNumber) profileData.phoneNumber = formData.phoneNumber;
       if (formData.roleMapping) profileData.roleMapping === formData.roleMapping;
     }
-console.log(formData.roleMapping)
+
     try {
       await updateUser(userId, {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         email: formData.email,
-        role: formData.role,
+        role: userRole,
         profileData,
       });
       setSuccess('User updated successfully!');
@@ -192,19 +201,8 @@ console.log(formData.roleMapping)
               />
             </div>
           </div>
-          <div className="relative">
-            <FaEnvelope className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400" size={20}/>
-            <input
-              type="email"
-              name="email"
-              placeholder="Email Address"
-              value={formData.email}
-              onChange={handleChange}
-              className="pl-10 w-full py-2.5 border border-gray-300 rounded-lg"
-              required
-            />
-          </div>
-          <div className="relative">
+         
+         {/* <div className="relative">
             <FaBriefcase className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400" size={20}/>
             <select
               name="roleMapping"
@@ -217,10 +215,23 @@ console.log(formData.roleMapping)
               <option value="teacher">Teacher</option>
               <option value="admin">Admin</option>
             </select>
-          </div>
+          </div> */}
           {/* Role-specific fields */}
           {formData.roleMapping === 'Teacher' && (
             <>
+             <div className="relative">
+            <FaEnvelope className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400" size={20}/>
+            <input
+              type="email"
+              name="email"
+              placeholder="Email Address"
+              value={formData.email}
+              onChange={handleChange}
+              className="pl-10 w-full py-2.5 border border-gray-300 rounded-lg"
+              required
+            />
+          </div>
+
               <div className="relative">
                 <input
                   type="text"
@@ -320,7 +331,20 @@ console.log(formData.roleMapping)
             </>
           )}
           {formData.roleMapping === 'Parent' && (
+            
             <div className="relative">
+               <div className="relative">
+            <FaEnvelope className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400" size={20}/>
+            <input
+              type="email"
+              name="email"
+              placeholder="Email Address"
+              value={formData.email}
+              onChange={handleChange}
+              className="pl-10 w-full py-2.5 border border-gray-300 rounded-lg"
+              required
+            />
+          </div>
               <input
                 type="text"
                 name="phoneNumber"

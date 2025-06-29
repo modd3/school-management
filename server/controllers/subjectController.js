@@ -178,3 +178,60 @@ exports.deleteSubject = asyncHandler(async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Subject deactivated successfully.' });
 });
+
+// @desc    Update Subject Teachers
+// @route   PUT /api/admin/subjects/:id/teachers
+// @access  Private (Admin)
+exports.updateSubjectTeachers = asyncHandler(async (req, res) => {
+    const { teacherIds } = req.body;
+    const subjectId = req.params.id;
+
+    const subject = await Subject.findById(subjectId);
+    if (!subject) {
+        return res.status(404).json({ message: 'Subject not found.' });
+    }
+
+    // Validate teacher IDs
+    if (!Array.isArray(teacherIds)) {
+        return res.status(400).json({ message: 'teacherIds must be an array' });
+    }
+
+    // Get current teachers
+    const oldTeacherIds = subject.assignedTeachers.map(t => t.toString());
+    const newTeacherIds = teacherIds.map(t => t.toString());
+
+    // Remove subject from old teachers
+    const teachersToRemove = oldTeacherIds.filter(id => !newTeacherIds.includes(id));
+    if (teachersToRemove.length > 0) {
+        await Teacher.updateMany(
+            { _id: { $in: teachersToRemove } },
+            { $pull: { subjectsTaught: subject._id } }
+        );
+    }
+
+    // Add subject to new teachers
+    const teachersToAdd = newTeacherIds.filter(id => !oldTeacherIds.includes(id));
+    if (teachersToAdd.length > 0) {
+        await Teacher.updateMany(
+            { _id: { $in: teachersToAdd } },
+            { $addToSet: { subjectsTaught: subject._id } }
+        );
+    }
+
+    // Update subject's teachers
+    subject.assignedTeachers = teacherIds;
+    await subject.save();
+
+    // Return populated subject with more teacher fields
+    const updatedSubject = await Subject.findById(subjectId)
+        .populate({
+            path: 'assignedTeachers',
+            select: 'firstName lastName email staffId'  // Include all fields you need
+        });
+
+    res.status(200).json({
+        success: true,
+        message: 'Subject teachers updated successfully',
+        subject: updatedSubject
+    });
+});

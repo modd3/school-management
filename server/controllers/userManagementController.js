@@ -54,7 +54,7 @@ exports.getUserById = asyncHandler(async (req, res) => {
 // Allows updating email, password (will be hashed by pre-save hook), and isActive status
 // Does NOT handle profileData updates directly, use specific profile controllers for that.
 exports.updateUser = asyncHandler(async (req, res) => {
-    const { email, password, isActive } = req.body;
+    const { email, password, isActive, firstName, lastName, profileData } = req.body;
     const userId = req.params.id;
 
     const user = await User.findById(userId);
@@ -62,7 +62,9 @@ exports.updateUser = asyncHandler(async (req, res) => {
         return res.status(404).json({ message: 'User not found.' });
     }
 
-    // Update email
+    // Update User fields
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
     if (email && email !== user.email) {
         const existingUser = await User.findOne({ email });
         if (existingUser && existingUser._id.toString() !== userId) {
@@ -70,21 +72,17 @@ exports.updateUser = asyncHandler(async (req, res) => {
         }
         user.email = email;
     }
+    if (password) user.password = password;
+    if (typeof isActive === 'boolean') user.isActive = isActive;
 
-    // Update password (pre-save hook in User model will hash it)
-    if (password) {
-        user.password = password;
-    }
-
-    // Update isActive status
-    if (typeof isActive === 'boolean') {
-        user.isActive = isActive;
-    }
-
-    // Save the user document. runValidators: true is important for password hashing
-    // validateBeforeSave: false is used if other required fields (like profileId) might be temporarily invalid
-    // during a complex flow (e.g., role change that unlinks profile)
     await user.save();
+
+    // Update profile fields if profileData is provided
+    if (profileData && user.profileId) {
+        const profileModel = user.roleMapping; // e.g., 'Teacher', 'Student', 'Parent'
+        const Profile = require(`../models/${profileModel}`); // dynamic import
+        await Profile.findByIdAndUpdate(user.profileId, profileData, { new: true });
+    }
 
     // Re-fetch user with populated profile to send back
     const updatedUser = await User.findById(userId)
@@ -111,14 +109,14 @@ exports.updateUserRole = asyncHandler(async (req, res) => {
     }
 
     // Basic role validation to ensure it's a valid enum value
-    const validRoles = ['admin', 'principal', 'deputy_principal', 'class_teacher', 'subject_teacher', 'parent', 'student'];
+    const validRoles = ['admin', 'teacher', 'parent', 'student'];
     if (!validRoles.includes(role)) {
         return res.status(400).json({ message: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
     }
 
     // Determine new roleMapping based on the new role
     let newRoleMapping = user.roleMapping; // Default to current
-    if (['principal', 'deputy_principal', 'class_teacher', 'subject_teacher'].includes(role)) {
+    if (role === 'teacher') {
         newRoleMapping = 'Teacher';
     } else if (role === 'parent') {
         newRoleMapping = 'Parent';

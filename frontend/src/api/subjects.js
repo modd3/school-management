@@ -65,3 +65,22 @@ export const deleteSubject = async (id) => {
     });
     return handleResponse(response);
 };
+
+// Update subject teachers
+export const updateSubjectTeachers = async (subjectId, teacherIds) => {
+    const response = await fetch(`${API_BASE_URL}/admin/subjects/${subjectId}/teachers`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            // Include any auth headers you need
+        },
+        body: JSON.stringify({ teacherIds }),
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update subject teachers');
+    }
+    
+    return response.json();
+};

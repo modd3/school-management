@@ -34,7 +34,6 @@ export const registerUser = async (userData) => {
     },
     body: JSON.stringify(userData),
   });
-  console.log(userData);
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.message || 'Failed to register user');
@@ -65,7 +64,7 @@ export const resetPassword = async (token, password, passwordConfirm) => {
 };
 
 export const logoutUser = async () => {
-  const token = localStorage.getItem('token'); // <-- get token here
+  const token = localStorage.getItem('token'); 
   const response = await fetch(`${API_BASE_URL}/auth/logout`, {
     method: 'POST',
     headers: {
@@ -83,7 +82,7 @@ export const getProfile = async (token) => {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // <-- Add this line
+            'Authorization': `Bearer ${token}` 
         }
     });
     return handleResponse(response);

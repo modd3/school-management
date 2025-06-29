@@ -147,10 +147,26 @@ exports.logoutUser = asyncHandler(async (req, res, next) => {
 // @route   GET /api/auth/me
 // @access  Private
 exports.getMe = asyncHandler(async (req, res) => {
-    // req.user is already populated by the protect middleware
+    // Find the user by ID
+    const user = await User.findById(req.user._id).lean();
+    if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // If the user is a teacher, fetch the teacher profile and merge teacherType
+    if (user.role === 'teacher' && user.profileId) {
+        const teacherProfile = await Teacher.findById(user.profileId).lean();
+        if (teacherProfile) {
+            user.teacherType = teacherProfile.teacherType;
+            // Optionally, merge other teacher fields if needed
+        }
+    }
+
+    // You can do similar for student/parent if you want extra fields
+
     res.status(200).json({
         success: true,
-        user: req.user // Contains basic user data + populated profile
+        user
     });
 });
 

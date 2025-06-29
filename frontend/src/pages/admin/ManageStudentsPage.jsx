@@ -18,6 +18,7 @@ export default function ManageStudentsPage() {
     setError(null);
     try {
       const data = await getStudents(); 
+      console.log("API students:", data);
       setStudents(data.students || []); // Assuming your backend returns { success: true, students: [...] }
     } catch (err) {
       console.error("Failed to load students:", err);

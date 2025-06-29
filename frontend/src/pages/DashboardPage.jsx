@@ -18,10 +18,9 @@ import {
 } from 'react-icons/fa';
 
 const DashboardPage = () => {
-  const { user, logout } = useAuth(); // Use logout from AuthContext
-
+  const { user, logout } = useAuth();
   // Role-based dashboard sections
-  const renderRoleActions = (role) => {
+  const renderRoleActions = (role, teacherType) => {
     switch (role) {
       case 'admin':
         return (
@@ -50,51 +49,92 @@ const DashboardPage = () => {
               <FaBookOpen className="inline-block mr-2" />
               Manage Subjects
             </Link>
-            {/* NEW LINK FOR MANAGE TERMS */}
             <Link to="/admin/terms" className="dashboard-link">
               <FaCalendarAlt className="inline-block mr-2" />
               Manage Terms
             </Link>
           </div>
         );
-      case 'class_teacher':
-        return (
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Link to="/teacher/enter-marks" className="dashboard-link">
-              <FaClipboardList className="inline-block mr-2" />
-              Enter Marks
-            </Link>
-            <Link to="/teacher/class-results" className="dashboard-link">
-              <FaListAlt className="inline-block mr-2" />
-              View Class Results
-            </Link>
-            <Link to="/teacher/publish-results" className="dashboard-link">
-              <FaFileAlt className="inline-block mr-2" />
-              Publish Results
-            </Link>
-            <Link to="/teacher/report-comments" className="dashboard-link">
-              <FaBookOpen className="inline-block mr-2" />
-              Report Card Comments
-            </Link>
-          </div>
-        );
-      case 'subject_teacher':
-        return (
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Link to="/teacher/enter-marks" className="dashboard-link">
-              <FaClipboardList className="inline-block mr-2" />
-              Enter Marks
-            </Link>
-            <Link to="/teacher/subject-results" className="dashboard-link">
-              <FaListAlt className="inline-block mr-2" />
-              View Subject Results
-            </Link>
-            <Link to="/teacher/comment" className="dashboard-link">
-              <FaBookOpen className="inline-block mr-2" />
-              Add Subject Comments
-            </Link>
-          </div>
-        );
+      case 'teacher':
+        // Nested switch for teacherType
+        switch (teacherType) {
+          case 'class_teacher':
+            return (
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Link to="/teacher/enter-marks" className="dashboard-link">
+                  <FaClipboardList className="inline-block mr-2" />
+                  Enter Marks
+                </Link>
+                <Link to="/teacher/class-results" className="dashboard-link">
+                  <FaListAlt className="inline-block mr-2" />
+                  View Class Results
+                </Link>
+                <Link to="/teacher/publish-results" className="dashboard-link">
+                  <FaFileAlt className="inline-block mr-2" />
+                  Publish Results
+                </Link>
+                <Link to="/teacher/report-comments" className="dashboard-link">
+                  <FaBookOpen className="inline-block mr-2" />
+                  Report Card Comments
+                </Link>
+              </div>
+            );
+          case 'subject_teacher':
+            return (
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Link to="/teacher/enter-marks" className="dashboard-link">
+                  <FaClipboardList className="inline-block mr-2" />
+                  Enter Marks
+                </Link>
+                <Link to="/teacher/subject-results" className="dashboard-link">
+                  <FaListAlt className="inline-block mr-2" />
+                  View Subject Results
+                </Link>
+                <Link to="/teacher/comment" className="dashboard-link">
+                  <FaBookOpen className="inline-block mr-2" />
+                  Add Subject Comments
+                </Link>
+              </div>
+            );
+          case 'principal':
+            return (
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Link to="/principal/overview" className="dashboard-link">
+                  <FaClipboardList className="inline-block mr-2" />
+                  School Overview
+                </Link>
+                <Link to="/principal/results-approval" className="dashboard-link">
+                  <FaFileAlt className="inline-block mr-2" />
+                  Approve Results
+                </Link>
+                <Link to="/principal/communications" className="dashboard-link">
+                  <FaBookOpen className="inline-block mr-2" />
+                  School Communications
+                </Link>
+              </div>
+            );
+          case 'deputy':
+            return (
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Link to="/deputy/overview" className="dashboard-link">
+                  <FaClipboardList className="inline-block mr-2" />
+                  Deputy Overview
+                </Link>
+                <Link to="/deputy/discipline" className="dashboard-link">
+                  <FaFileAlt className="inline-block mr-2" />
+                  Manage Discipline
+                </Link>
+                <Link to="/deputy/communications" className="dashboard-link">
+                  <FaBookOpen className="inline-block mr-2" />
+                  School Communications
+                </Link>
+              </div>
+            );
+          default:
+            return (
+              <div className="mt-6 text-gray-600">No dashboard available for your teacher type.</div>
+            );
+        }
       case 'student':
         return (
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -130,8 +170,8 @@ const DashboardPage = () => {
     }
   };
 
-  // Helper to render role description (unchanged from previous)
-  const renderRoleSpecificContent = (role) => {
+  // Helper to render role description
+  const renderRoleSpecificContent = (role, teacherType) => {
     switch (role) {
       case 'admin':
         return (
@@ -140,14 +180,39 @@ const DashboardPage = () => {
             As an Admin, you have full control over the system.
           </p>
         );
-      case 'subject_teacher':
-      case 'class_teacher':
-        return (
-          <p className="text-gray-700 mt-2">
-            <FaChalkboardTeacher className="inline-block mr-2" />
-            Manage your subjects, classes, and student marks.
-          </p>
-        );
+      case 'teacher':
+        switch (teacherType) {
+          case 'class_teacher':
+            return (
+              <p className="text-gray-700 mt-2">
+                <FaChalkboardTeacher className="inline-block mr-2" />
+                Manage your class, marks, and report comments.
+              </p>
+            );
+          case 'subject_teacher':
+            return (
+              <p className="text-gray-700 mt-2">
+                <FaChalkboardTeacher className="inline-block mr-2" />
+                Manage your subjects and student marks.
+              </p>
+            );
+          case 'principal':
+            return (
+              <p className="text-gray-700 mt-2">
+                <FaChalkboardTeacher className="inline-block mr-2" />
+                Oversee school performance and approve results.
+              </p>
+            );
+          case 'deputy':
+            return (
+              <p className="text-gray-700 mt-2">
+                <FaChalkboardTeacher className="inline-block mr-2" />
+                Assist in school management and discipline.
+              </p>
+            );
+          default:
+            return null;
+        }
       case 'student':
         return (
           <p className="text-gray-700 mt-2">
@@ -167,7 +232,6 @@ const DashboardPage = () => {
     }
   };
 
-  // Use the logout from AuthContext, which now handles clearing localStorage token
   const handleLogout = async () => {
     await logout();
   };
@@ -185,8 +249,8 @@ const DashboardPage = () => {
               <span className="text-blue-500"> ({user.roleMapping || user.role})</span>
             </p>
             <p className="text-gray-600 mb-4">Email: {user.email}</p>
-            {renderRoleSpecificContent(user.role)}
-            {renderRoleActions(user.role)}
+            {renderRoleSpecificContent(user.role, user.teacherType)}
+            {renderRoleActions(user.role, user.teacherType)}
             <button
               onClick={handleLogout}
               className="mt-6 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200 flex items-center justify-center mx-auto"

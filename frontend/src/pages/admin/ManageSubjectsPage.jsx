@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FaBookOpen, FaEdit, FaTrashAlt, FaSearch, FaPlusCircle } from 'react-icons/fa';
+import { FaCheckCircle, FaUserPlus, FaBookOpen, FaEdit, FaTrashAlt, FaSearch, FaPlusCircle } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import { getSubjects, createSubject, deleteSubject } from '../../api/subjects'; 
+import { getSubjects, createSubject, deleteSubject, updateSubjectTeachers } from '../../api/subjects'; 
 import { getTeachers } from '../../api/teachers'; // Make sure you have this API
 
 export default function ManageSubjectsPage() {
@@ -14,6 +14,9 @@ export default function ManageSubjectsPage() {
   const [newSubjectDescription, setNewSubjectDescription] = useState('');
   const [newAssignedTeachers, setNewAssignedTeachers] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState(null);
+  const [selectedTeachers, setSelectedTeachers] = useState([]);
   const navigate = useNavigate();
 
   // Function to load subjects from the API
@@ -88,6 +91,39 @@ export default function ManageSubjectsPage() {
 
   const handleEditSubject = (subjectId) => {
     navigate(`/admin/subjects/edit/${subjectId}`); // You'll need to create this route and page for editing
+  };
+
+  const handleOpenAssignModal = (subject) => {
+    setSelectedSubject(subject);
+    setSelectedTeachers(subject.assignedTeachers.map(t => t._id));
+    setIsAssignModalOpen(true);
+  };
+
+  const handleCloseAssignModal = () => {
+    setIsAssignModalOpen(false);
+    setSelectedSubject(null);
+    setSelectedTeachers([]);
+  };
+
+  const handleAssignTeachers = async (e) => {
+    e.preventDefault();
+    if (!selectedSubject || selectedTeachers.length === 0) return;
+
+    try {
+      const updatedSubject = {
+        ...selectedSubject,
+        assignedTeachers: selectedTeachers,
+      };
+      // Call your API to update the subject with new teachers
+      await updateSubjectTeachers(selectedSubject._id, selectedTeachers);
+
+      setSubjects(subjects.map(subject => 
+        subject._id === selectedSubject._id ? updatedSubject : subject
+      ));
+      handleCloseAssignModal();
+    } catch (err) {
+      setError(err.message || 'Failed to assign teachers.');
+    }
   };
 
   const filteredSubjects = subjects.filter(subject =>
@@ -219,11 +255,61 @@ export default function ManageSubjectsPage() {
                       >
                         <FaTrashAlt size={18}/>
                       </button>
+                      <button
+                        onClick={() => handleOpenAssignModal(subject)}
+                        className="text-green-600 hover:text-green-900 p-2 rounded-full hover:bg-green-100 transition-colors"
+                        title="Assign Teachers"
+                      >
+                        <FaUserPlus size={18}/>
+                      </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {isAssignModalOpen && selectedSubject && (
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 sm:p-8 max-w-lg w-full">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Assign Teachers to {selectedSubject.name}</h2>
+              <form onSubmit={handleAssignTeachers}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Teachers
+                  </label>
+                  <select
+                    multiple
+                    value={selectedTeachers}
+                    onChange={e =>
+                      setSelectedTeachers(Array.from(e.target.selectedOptions, option => option.value))
+                    }
+                    className="py-2 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                  >
+                    {teachers.map(teacher => (
+                      <option key={teacher._id} value={teacher._id}>
+                        {teacher.firstName} {teacher.lastName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={handleCloseAssignModal}
+                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded-lg transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors duration-200"
+                  >
+                    <FaCheckCircle /> Assign Teachers
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
       </div>
