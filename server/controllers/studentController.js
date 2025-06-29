@@ -13,7 +13,7 @@ exports.createStudent = asyncHandler(async (req, res) => {
     try {
         const {
             firstName, lastName, otherNames, dateOfBirth, gender,
-            currentClass, stream, parentContactIds, studentPhotoUrl,
+            currentClass, parentContactIds, studentPhotoUrl,
             email, password // For optional creation of associated User account
         } = req.body;
 
@@ -79,7 +79,6 @@ exports.createStudent = asyncHandler(async (req, res) => {
             dateOfBirth,
             gender,
             currentClass: currentClass || undefined,
-            stream: stream || undefined,
             parentContacts: parentContactIds || [],
             studentPhotoUrl: studentPhotoUrl || undefined,
             userId: user?._id    // Link to user if created

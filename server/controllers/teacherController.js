@@ -418,3 +418,38 @@ exports.assignTeacherToClass = asyncHandler(async (req, res) => {
 
     res.status(200).json({ success: true, message, teacher });
 });
+
+exports.getMySubjects = async (req, res) => {
+  try {
+    // Step 1: Get teacher document using userId from token
+    const teacher = await Teacher.findOne({ userId: req.user.id });
+
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: 'Teacher not found' });
+    }
+
+    // Step 2: Find subjects where this teacher is assigned
+    const subjects = await Subject.find({ _id: { $in: teacher.subjectsTaught } }).select('_id name code');
+
+    // Step 3: Convert _id ObjectIds to strings
+    const sanitizedSubjects = subjects.map(subject => ({
+      _id: subject._id.toString(),
+      name: subject.name,
+      code: subject.code,
+    }));
+
+    // Step 4: Return to frontend
+    return res.json({
+      success: true,
+      subjects: sanitizedSubjects
+    });
+
+  } catch (err) {
+    console.error('Error in getMySubjects:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @route   GET /api/teacher/my-subjects
+
+// @desc    Get all subjects taught by a teacher

@@ -11,6 +11,7 @@ const {
     publishTermResults,
     getPublishedResultsForClass
 } = require('../controllers/resultController');
+const { getMySubjects } = require('../controllers/teacherController');
 const { updateClassTeacherComment } = require('../controllers/reportCardController');
 const { getAllStudents } = require('../controllers/studentController');
 const { getAllSubjects } = require('../controllers/subjectController');
@@ -18,10 +19,12 @@ const { getAllTerms } = require('../controllers/termController');
 
 // Protect all teacher routes
 router.use(protect);
-router.use(authorize(['teacher, admin']));
+router.use(authorize(['teacher']));
 
 // Enter marks for a student
 router.post('/results/enter', enterMarks);
+
+router.get('/my-subjects', getMySubjects);
 
 // Get marks for entry for a class, subject, term, and exam type
 router.get('/results/for-entry/:classId/:subjectId/:termId/:examType', getMarksForEntry);
@@ -49,8 +52,8 @@ router.put(
 );
 
 // Allow both teachers and admins to access
-router.get('/students', authorize(['class_teacher', 'subject_teacher', 'principal', 'deputy_principal']),getAllStudents);
-router.get('/subjects', authorize(['class_teacher', 'subject_teacher', 'principal', 'deputy_principal']),getAllSubjects);
-router.get('/terms', authorize(['class_teacher', 'subject_teacher', 'principal', 'deputy_principal']),getAllTerms);
+router.get('/students', authorize(['teacher']),getAllStudents);
+router.get('/subjects', authorize(['teacher']),getAllSubjects);
+router.get('/terms', authorize(['teacher']),getAllTerms);
 
 module.exports = router;

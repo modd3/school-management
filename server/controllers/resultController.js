@@ -8,20 +8,23 @@ const Term = require('../models/Term');
 // @route   POST /api/teacher/results/enter
 // @access  Private (Teacher, Class Teacher, Subject Teacher)
 exports.enterMarks = async (req, res) => {
-    const { studentId, subjectId, termId, examType, marksObtained, comment } = req.body;
+    const { studentId, subjectId, termId, examType, marksObtained, outOf, comment } = req.body;
 
-    if (!studentId || !subjectId || !termId || !examType || marksObtained === undefined) {
-        return res.status(400).json({ message: 'Missing required fields: studentId, subjectId, termId, examType, marksObtained' });
+    if (!studentId || !subjectId || !termId || !examType || marksObtained === undefined || outOf === undefined) {
+        return res.status(400).json({ message: 'Missing required fields: studentId, subjectId, termId, examType, marksObtained, outOf' });
     }
 
     try {
-        const { grade, points } = calculateGradeAndPoints(marksObtained);
+        const percentage = (marksObtained / outOf) * 100;
+        const { grade, points } = calculateGradeAndPoints(percentage)
 
         // Check if a result already exists for this student, subject, term, and exam type
         let result = await Result.findOne({ student: studentId, subject: subjectId, term: termId, examType });
 
         if (result) {
             result.marksObtained = marksObtained;
+            result.outOf = outOf;
+            result.percentage = percentage;     
             result.grade = grade;
             result.points = points;
             result.comment = comment || result.comment;
@@ -34,6 +37,8 @@ exports.enterMarks = async (req, res) => {
                 term: termId,
                 examType,
                 marksObtained,
+                outOf,
+                percentage,
                 grade,
                 points,
                 comment

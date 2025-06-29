@@ -1,6 +1,4 @@
-// server/utils/grading.js
-
-const kcseGradingScale = [
+export const kcseGradingScale = [
   { range: [0, 29], grade: 'E', points: 1 },
   { range: [30, 34], grade: 'D-', points: 2 },
   { range: [35, 39], grade: 'D', points: 3 },
@@ -15,7 +13,7 @@ const kcseGradingScale = [
   { range: [80, 100], grade: 'A', points: 12 }
 ];
 
-function calculateGradeAndPoints(marks) {
+export function calculateGradeAndPoints(marks) {
   for (const entry of kcseGradingScale) {
     const [min, max] = entry.range;
     if (marks >= min && marks <= max) {
@@ -25,14 +23,8 @@ function calculateGradeAndPoints(marks) {
   return { grade: 'E', points: 1 }; // fallback
 }
 
-function calculateOverallGrade(meanPoints) {
+export function calculateOverallGrade(meanPoints) {
   const rounded = Math.round(meanPoints);
   const match = kcseGradingScale.find(entry => entry.points === rounded);
   return match ? match.grade : 'E';
 }
-
-module.exports = {
-  kcseGradingScale,
-  calculateGradeAndPoints,
-  calculateOverallGrade
-};

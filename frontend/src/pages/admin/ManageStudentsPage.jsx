@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaUserGraduate, FaEdit, FaTrashAlt, FaSearch, FaPlusCircle } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { getStudents, deleteStudent } from '../../api/students'; 
-import { getAllParents } from '../../api/parents'; // You need to implement this API call
+import { getAllParents } from '../../api/parents'; 
 
 export default function ManageStudentsPage() {
   const [students, setStudents] = useState([]);

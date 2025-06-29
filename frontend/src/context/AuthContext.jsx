@@ -15,6 +15,11 @@ export const AuthProvider = ({ children }) => {
   const checkAuthStatus = async () => {
     try {
       setLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setUser(null);
+        return;
+      }
       const profile = await getProfile(token); // Fetch profile to see if user is logged in
       setUser(profile.user); // Assuming backend sends { success: true, user: {...} }
     } catch (err) {
