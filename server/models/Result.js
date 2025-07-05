@@ -32,7 +32,8 @@ const resultSchema = new mongoose.Schema({
     percentage: { type: Number },
     grade: { type: String },
     points: { type: Number },
-    comment: { type: String }
+    comment: { type: String },
+    enteredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' } // Field to reference the teacher who entered the result
     // ... other fields (e.g., grade, comments) ...
 }, { timestamps: true });
 

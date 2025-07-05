@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-// Assuming logoutUser from '../api/auth' is now simply `logout` from useAuth()
+import { getTerms } from '../api/terms';
 import {
   FaSignOutAlt,
   FaUserCircle,
@@ -14,11 +14,25 @@ import {
   FaClipboardList,
   FaBookOpen,
   FaFileAlt,
-  FaCalendarAlt, // Import the calendar icon for terms
+  FaCalendarAlt,
 } from 'react-icons/fa';
 
 const DashboardPage = () => {
   const { user, logout } = useAuth();
+  const [termId, setTermId] = useState('');
+  const [terms, setTerms] = useState([]);
+
+  useEffect(() => {
+    async function loadTerms() {
+      const data = await getTerms();
+      setTerms(data.terms || []);
+      if (data.terms?.length > 0) {
+        setTermId(data.terms[0]._id); // Default to first term
+      }
+    }
+    loadTerms();
+  }, []);
+
   // Role-based dashboard sections
   const renderRoleActions = (role, teacherType) => {
     switch (role) {
@@ -56,7 +70,6 @@ const DashboardPage = () => {
           </div>
         );
       case 'teacher':
-        // Nested switch for teacherType
         switch (teacherType) {
           case 'class_teacher':
             return (
@@ -64,6 +77,10 @@ const DashboardPage = () => {
                 <Link to="/teacher/enter-marks" className="dashboard-link">
                   <FaClipboardList className="inline-block mr-2" />
                   Enter Marks
+                </Link>
+                <Link to="/teacher/results/entered-by-me" className="dashboard-link">
+                  <FaListAlt className="inline-block mr-2" />
+                  Results By Me
                 </Link>
                 <Link to="/teacher/class-results" className="dashboard-link">
                   <FaListAlt className="inline-block mr-2" />
@@ -85,6 +102,10 @@ const DashboardPage = () => {
                 <Link to="/teacher/enter-marks" className="dashboard-link">
                   <FaClipboardList className="inline-block mr-2" />
                   Enter Marks
+                </Link>
+                <Link to="/teacher/results/entered-by-me" className="dashboard-link">
+                  <FaListAlt className="inline-block mr-2" />
+                  Results By Me
                 </Link>
                 <Link to="/teacher/subject-results" className="dashboard-link">
                   <FaListAlt className="inline-block mr-2" />
@@ -137,19 +158,48 @@ const DashboardPage = () => {
         }
       case 'student':
         return (
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Link to="/student/results" className="dashboard-link">
-              <FaListAlt className="inline-block mr-2" />
-              My Results
-            </Link>
-            <Link to="/student/report-card" className="dashboard-link">
-              <FaFileAlt className="inline-block mr-2" />
-              Report Card
-            </Link>
-            <Link to="/student/class-schedule" className="dashboard-link">
-              <FaClipboardList className="inline-block mr-2" />
-              Class Schedule
-            </Link>
+          <div className="mt-6">
+            <div className="mb-4 flex flex-col md:flex-row items-center gap-4">
+              <label htmlFor="term-select" className="font-medium flex items-center gap-2">
+                <FaCalendarAlt /> Select Term:
+              </label>
+              <select
+                id="term-select"
+                className="border px-3 py-2 rounded"
+                value={termId}
+                onChange={e => setTermId(e.target.value)}
+              >
+                <option value="">-- Select Term --</option>
+                {terms.map(term => (
+                  <option key={term._id} value={term._id}>
+                    {term.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {termId ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Link to={`/student/report/${termId}/Opener`} className="dashboard-link">
+                  📘 Opener Exam Report
+                </Link>
+                <Link to={`/student/report/${termId}/Midterm`} className="dashboard-link">
+                  📗 Midterm Exam Report
+                </Link>
+                <Link to={`/student/report/${termId}/Endterm`} className="dashboard-link">
+                  📙 Endterm Exam Report
+                </Link>
+                <Link to={`/student/final-report/${termId}`} className="dashboard-link">
+  📝 Final Report Card (30/30/70)
+</Link>
+
+                <Link to="/student/class-schedule" className="dashboard-link">
+                  <FaClipboardList className="inline-block mr-2" />
+                  Class Schedule
+                </Link>
+              </div>
+            ) : (
+              <p className="text-red-600">Please select a term to view exam reports.</p>
+            )}
           </div>
         );
       case 'parent':
@@ -215,10 +265,12 @@ const DashboardPage = () => {
         }
       case 'student':
         return (
-          <p className="text-gray-700 mt-2">
-            <FaUserGraduate className="inline-block mr-2" />
-            View your results, report cards, and class schedule.
-          </p>
+          <div className="mt-4 space-y-4">
+            <div className="text-gray-700 flex items-center gap-2">
+              <FaUserGraduate />
+              <span>View your results, report cards, and class schedule:</span>
+            </div>
+          </div>
         );
       case 'parent':
         return (

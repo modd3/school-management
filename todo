@@ -1,0 +1,90 @@
+# 🏫 School Management App – TODO Checklist
+_Last updated: 2025-06-30 15:30_
+
+---
+
+## ✅ CURRENT STAGE (Completed / In Progress)
+- [x] User Registration (Admin, Student, Teacher, Parent)
+- [x] Class Creation (with teacher assignment and stream support)
+- [x] Student Registration and Class linking
+- [x] Subject Creation with teacher and class assignment
+- [x] Teacher Mark Entry (with grade & points auto-computed)
+- [x] Report Card Generation logic (basic version working)
+- [x] Role-based API access (admin/teacher/student separation)
+- [x] Class and student deletion (fully removes from DB)
+- [x] Student's current class and stream shown in UI
+- [x] Class streams and students array bug fixed (data consistency)
+
+---
+
+## 🔜 NEXT TODOs – Immediate Priorities
+
+### 🧩 1. Data Consistency & Cleanup
+- [ ] Remove all duplicate `stream`/`streams` usage in Class schema (standardize to one)
+- [ ] Ensure students auto-update Class's `students[]` array during registration and class change
+- [ ] Ensure classes auto-update Subjects' `assignedClasses[]` correctly
+
+### 📚 2. Marks and Report Cards
+- [ ] Link each mark entry to a subject, class, term, exam type
+- [ ] Allow class teacher to **preview & publish** report cards
+- [ ] Report cards should show: subject marks, grades, mean grade, total points
+- [ ] Allow students/parents to view their own report card after publication
+
+### 🧑‍🏫 3. Teacher Experience
+- [ ] Teacher should only see:
+  - Subjects they are assigned
+  - Classes linked to those subjects
+- [ ] Allow teachers to enter marks in bulk (table input mode)
+- [ ] Teacher dashboard: show assigned classes, subjects, and pending mark entries
+
+### 📝 4. Results Analytics
+- [ ] Show **class-level results summary**: mean score, mean grade, subject average
+- [ ] Subject performance charts for teachers/admin
+- [ ] Term-over-term performance trend per student
+
+---
+
+## 🔐 Security & Access Control
+- [x] Enforce role-based API access (student/teacher/admin separation)
+- [ ] Hide unauthorized actions in frontend based on role
+- [ ] Add logging or alerts for failed/unexpected logins or actions
+
+---
+
+## 🖼️ UI/UX Enhancements
+- [ ] Better loading indicators and error messages
+- [ ] Form validation and friendly date pickers
+- [ ] Profile page per user (editable by admin/user)
+- [ ] Responsive mobile layout for all pages
+
+---
+
+## 🗃️ Future Scaling & Modules
+
+### 💳 Fees & Finance
+- [ ] Record fee payments per student
+- [ ] Track balance and generate fee statements
+
+### 📆 Attendance Tracking
+- [ ] Daily attendance per class
+- [ ] Absence summaries and reports
+
+### 📥 Communication
+- [ ] Parent notifications via SMS/Email
+- [ ] Admin-to-all message board
+
+### 🗂️ Additional Features to Consider
+- [ ] Student promotion to next class/stream at end of term/year
+- [ ] Bulk import/export of students, marks, and classes (CSV/Excel)
+- [ ] Audit log for admin actions (who did what/when)
+- [ ] Customizable grading scales per subject/class
+- [ ] Parent portal: see all children, fee status, and results
+- [ ] Push notifications for new results or announcements
+
+---
+
+## 🧪 Testing & DevOps
+- [ ] Add unit/integration tests for API endpoints
+- [ ] Backup strategy for MongoDB
+- [ ] Environment variable management (`.env` handling)
+- [ ] Dockerize backend and frontend for easy deployment

@@ -8,6 +8,18 @@ const studentSchema = new mongoose.Schema({
     dateOfBirth: { type: Date, required: true },
     gender: { type: String, enum: ['Male', 'Female', 'Other'] },
     currentClass: { type: mongoose.Schema.Types.ObjectId, ref: 'Class' }, // Reference to the current class
+    results: [
+                {
+                  subject: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject' },
+                  term: { type: mongoose.Schema.Types.ObjectId, ref: 'Term' },
+                  examType: String,
+                  marksObtained: Number,
+                  outOf: Number,
+                  percentage: Number,
+                  grade: String,
+                  points: Number
+                }
+              ],
     parentContacts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Parent' }], // Array to link multiple parents
     studentPhotoUrl: { type: String },
     isActive: { type: Boolean, default: true },

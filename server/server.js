@@ -10,6 +10,7 @@ const principalRoutes = require('./routes/principalRoutes'); // New principal ro
 const path = require('path'); // For serving static files
 const uploadRoutes = require('./routes/uploadRoutes'); // Import the upload routes
 const studentRoutes = require('./routes/studentRoutes'); 
+const termRoutes = require('./routes/termRoutes'); // Import term routes
 const cors = require('cors');
 const morgan = require('morgan'); // For logging requests
 
@@ -39,6 +40,7 @@ app.use('/api/parent', parentRoutes);
 app.use('/api/principal', principalRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/student', studentRoutes); 
+app.use('/api/terms', termRoutes); // Mount term routes
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
