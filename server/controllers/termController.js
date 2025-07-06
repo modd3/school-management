@@ -57,8 +57,8 @@ exports.createTerm = asyncHandler(async (req, res) => {
 });
 
 // @desc    Get all Terms
-// @route   GET /api/admin/terms
-// @access  Private (Admin)
+// @route   GET /terms
+// @access  Public
 exports.getAllTerms = asyncHandler(async (req, res) => {
     // You might want to add filtering by academicYear or sorting here
     const terms = await Term.find({}).sort({ academicYear: 1, startDate: 1 });

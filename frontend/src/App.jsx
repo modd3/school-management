@@ -22,6 +22,9 @@ import EditStudentPage from './pages/admin/EditStudentPage'; // Import EditStude
 import DashboardLinkWrapper from './components/DashboardLinkWrapper';
 import EnterMarksPage from './pages/teacher/EnterMarksPage';
 import ReportCardPage from './pages/teacher/ReportCardPage';
+import TeacherResultsPage from './pages/teacher/TeacherResultsPage';
+import StudentExamReportPage from './pages/student/StudentExamReportPage';
+import StudentFinalReportPage from './pages/student/StudentFinalReportPage'; // Import the new StudentFinalReportPage
 
 // A simple Protected Route component (make sure this is robust in your actual app)
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -164,7 +167,31 @@ function App() {
                 </ProtectedRoute>
               }
             />
-        
+        <Route
+          path="/teacher/results/entered-by-me"
+          element={
+            <ProtectedRoute allowedRoles={['teacher']}>
+              <TeacherResultsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+        path="/student/report/:termId/:examType"
+        element={<ProtectedRoute allowedRoles={['student']}>
+          <StudentExamReportPage />
+        </ProtectedRoute>}
+      />
+
+      <Route
+  path="/student/final-report/:termId"
+  element={
+    <ProtectedRoute allowedRoles={['student']}>
+      <StudentFinalReportPage />
+    </ProtectedRoute>
+  }
+/>
+
 
             {/* Catch-all for undefined routes */}
             <Route path="*" element={<div className="text-center mt-20 text-gray-700">404 - Page Not Found</div>} />

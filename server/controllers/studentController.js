@@ -13,7 +13,7 @@ exports.createStudent = asyncHandler(async (req, res) => {
     try {
         const {
             firstName, lastName, otherNames, dateOfBirth, gender,
-            currentClass, stream, parentContactIds, studentPhotoUrl,
+            currentClass, parentContactIds, studentPhotoUrl,
             email, password // For optional creation of associated User account
         } = req.body;
 
@@ -79,7 +79,6 @@ exports.createStudent = asyncHandler(async (req, res) => {
             dateOfBirth,
             gender,
             currentClass: currentClass || undefined,
-            stream: stream || undefined,
             parentContacts: parentContactIds || [],
             studentPhotoUrl: studentPhotoUrl || undefined,
             userId: user?._id    // Link to user if created
@@ -259,8 +258,7 @@ exports.updateStudent = asyncHandler(async (req, res) => {
     res.status(200).json({ success: true, message: 'Student profile updated successfully', student });
 });
 
-
-// @desc    Delete (Deactivate) a student
+// @desc    Delete a student (fully remove from DB)
 // @route   DELETE /api/admin/students/:id
 // @access  Private (Admin)
 exports.deleteStudent = asyncHandler(async (req, res) => {
@@ -268,19 +266,6 @@ exports.deleteStudent = asyncHandler(async (req, res) => {
 
     if (!student) {
         return res.status(404).json({ message: 'Student not found.' });
-    }
-
-    // Soft delete the Student profile
-    student.isActive = false; // Assuming isActive field on Student model
-    await student.save();
-
-    // Optionally, also deactivate the associated User account
-    if (student.userId) {
-        const user = await User.findById(student.userId);
-        if (user) {
-            user.isActive = false; // Assuming isActive field on User model
-            await user.save();
-        }
     }
 
     // Remove student from their current class's students array
@@ -296,10 +281,15 @@ exports.deleteStudent = asyncHandler(async (req, res) => {
         );
     }
 
-    // Note: Deleting a student does NOT delete their past Results or ReportCards.
-    // These should remain for historical data/auditing.
+    // Optionally, also delete the associated User account
+    if (student.userId) {
+        await User.findByIdAndDelete(student.userId);
+    }
 
-    res.status(200).json({ success: true, message: 'Student and associated user (if any) deactivated successfully.' });
+    // Finally, delete the student document
+    await Student.findByIdAndDelete(student._id);
+
+    res.status(200).json({ success: true, message: 'Student and associated user (if any) deleted successfully.' });
 });
 
 // @desc    Assign a student to a class

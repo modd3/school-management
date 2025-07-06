@@ -3,7 +3,9 @@ const router = express.Router();
 const { protect, authorize } = require('../middleware/authMiddleware');
 const {
     getStudentResultsForTerm,
-    getPublishedResultsForClass
+    getPublishedResultsForClass,
+    getStudentExamReport,
+    getFinalReportCard
 } = require('../controllers/resultController');
 
 // Protect all student routes
@@ -27,6 +29,18 @@ router.get('/results/published/term/:termId', async (req, res) => {
     req.params.classId = student.currentClass.toString();
     req.params.termId = req.params.termId;
     return getPublishedResultsForClass(req, res);
+});
+
+router.get("/report/:termId/:examType", async (req, res) => {
+    // Use the logged-in student's profileId
+    req.params.studentId = req.user.profileId;
+    return getStudentExamReport(req, res);
+});
+
+router.get("/final-report/:termId", async (req, res) => {
+    // Use the logged-in student's profileId or _id
+    req.params.studentId = req.user.profileId;
+    return getFinalReportCard(req, res);
 });
 
 module.exports = router;

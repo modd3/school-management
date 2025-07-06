@@ -16,26 +16,24 @@ const resultSchema = new mongoose.Schema({
         ref: 'Term',
         required: true
     },
-    cat1: { // Cat 1 marks
-        type: Number,
-        default: 0
-    },
-    cat2: { // Cat 2 marks
-        type: Number,
-        default: 0
-    },
-    endterm: { // End-term exam marks
-        type: Number,
-        default: 0
-    },
+  
     examType: { // New field to explicitly specify exam type
         type: String,
-        enum: ['cat1', 'cat2', 'endterm'], // Enforce valid exam types
+        enum: ['Opener', 'Midterm', 'Endterm'], // Enforce valid exam types
         required: true
     },
-    totalMarks: { // Calculated total marks
-        type: Number
+    marksObtained: { // Marks obtained in the exam
+        type: Number,
+        required: true,
+        min: 0,
+        max: 100 // Assuming marks are out of 100
     },
+    outOf: { type: Number, required: true },
+    percentage: { type: Number },
+    grade: { type: String },
+    points: { type: Number },
+    comment: { type: String },
+    enteredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' } // Field to reference the teacher who entered the result
     // ... other fields (e.g., grade, comments) ...
 }, { timestamps: true });
 

@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 // @route   POST /api/admin/classes
 // @access  Private (Admin)
 exports.createClass = asyncHandler(async (req, res) => {
-    const { name, streams, classTeacher } = req.body;
+    const { name, stream, classTeacher } = req.body;
 
     // Basic validation
     if (!name) {
@@ -37,13 +37,13 @@ exports.createClass = asyncHandler(async (req, res) => {
     }
 
     // Validate streams if provided
-    if (streams && !Array.isArray(streams)) {
-        return res.status(400).json({ message: 'Streams must be an array of strings.' });
+    if (stream && !Array.isArray(stream)) {
+        return res.status(400).json({ message: 'Stream must be an array of strings.' });
     }
 
     const newClass = await Class.create({
         name,
-        streams: streams || [],
+        stream: stream || [],
         classTeacher: classTeacher || undefined // Link teacher if provided
     });
 
@@ -143,39 +143,38 @@ exports.updateClass = asyncHandler(async (req, res) => {
     res.status(200).json({ success: true, message: 'Class updated successfully', class: classObj });
 });
 
-// @desc    Delete (Deactivate) a Class
+
+// @desc    Delete (Hard Delete) a Class
 // @route   DELETE /api/admin/classes/:id
 // @access  Private (Admin)
-// This implements a soft delete by setting isActive to false.
-exports.deleteClass = asyncHandler(async (req, res) => {
-    const classObj = await Class.findById(req.params.id);
+exports.deleteClass = async (req, res) => {
+  try {
+    const classToDelete = await Class.findById(req.params.id);
+    if (!classToDelete) return res.status(404).json({ message: 'Class not found' });
 
-    if (!classObj) {
-        return res.status(404).json({ message: 'Class not found.' });
+    // Unassign teacher if assigned
+    if (classToDelete.classTeacher) {
+      await Teacher.findByIdAndUpdate(classToDelete.classTeacher, {
+        $unset: { classTaught: "" }
+      });
     }
 
-    // Soft delete the Class
-    classObj.isActive = false; // Assuming isActive field on Class model
-    await classObj.save();
-
-    // If this class had a class teacher, unset them
-    if (classObj.classTeacher) {
-        await Teacher.findByIdAndUpdate(classObj.classTeacher, { classTaught: null });
+    // Optional: Unassign students from the class
+    if (classToDelete.students && classToDelete.students.length > 0) {
+      await Student.updateMany(
+        { _id: { $in: classToDelete.students } },
+        { $unset: { currentClass: "", stream: "" } }
+      );
     }
 
-    // Optionally, unassign all students from this class
-    // This is important for data consistency.
-    if (classObj.students && classObj.students.length > 0) {
-        await Student.updateMany(
-            { _id: { $in: classObj.students } },
-            { currentClass: null, stream: null } // Unset class and stream for these students
-        );
-    }
-    classObj.students = []; // Clear students array on the class itself
-    await classObj.save(); // Save again to reflect cleared students array
+    await Class.findByIdAndDelete(req.params.id);
 
-    res.status(200).json({ success: true, message: 'Class deactivated and linked entities unassigned successfully.' });
-});
+    res.json({ message: 'Class deleted successfully and related links cleaned.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to delete class', error: err.message });
+  }
+};
+
 
 // @desc    Assign a Class Teacher to a Class
 // @route   PUT /api/admin/classes/:classId/assign-teacher

@@ -15,6 +15,7 @@ const subjectSchema = new mongoose.Schema({
         unique: true,
         trim: true
     },
+    assignedClasses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Class' }],
     description: {
         type: String,
         maxlength: [500, 'Description cannot be more than 500 characters']

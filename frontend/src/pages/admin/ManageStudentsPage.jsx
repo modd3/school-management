@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaUserGraduate, FaEdit, FaTrashAlt, FaSearch, FaPlusCircle } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { getStudents, deleteStudent } from '../../api/students'; 
-import { getAllParents } from '../../api/parents'; // You need to implement this API call
+import { getAllParents } from '../../api/parents'; 
 
 export default function ManageStudentsPage() {
   const [students, setStudents] = useState([]);
@@ -71,7 +71,7 @@ export default function ManageStudentsPage() {
     (student.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
     (student.email?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
     (student.studentId?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
-    (student.class?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') // Assuming 'class' is an object with a 'name' property
+    (student.currentClass?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') // Assuming 'class' is an object with a 'name' property
   );
 
   if (loading) {
@@ -137,7 +137,11 @@ export default function ManageStudentsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.firstName} {student.lastName}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{student.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{student.admissionNumber}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{student.class?.name || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {student.currentClass
+                        ? `${student.currentClass.name}${student.currentClass.stream ? ' ' + student.currentClass.stream : ''}`
+                        : 'N/A'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-center space-x-2">
                       <button
                         onClick={() => handleEditStudent(student._id)}

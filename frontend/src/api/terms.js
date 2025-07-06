@@ -16,7 +16,7 @@ const getAuthHeaders = () => {
 
 // Fetch all terms
 export const getTerms = async () => {
-    const response = await fetch(`${API_BASE_URL}/admin/terms`, {
+    const response = await fetch(`${API_BASE_URL}/terms`, {
         method: 'GET',
         headers: getAuthHeaders(),
         credentials: 'include',
