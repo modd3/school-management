@@ -39,7 +39,7 @@ router.get("/report/:termId/:examType", async (req, res) => {
 
 router.get("/final-report/:termId", async (req, res) => {
     // Use the logged-in student's profileId or _id
-    req.params.studentId = req.user.profileId || req.user._id;
+    req.params.studentId = req.user.profileId;
     return getFinalReportCard(req, res);
 });
 

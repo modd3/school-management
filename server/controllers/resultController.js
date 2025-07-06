@@ -340,9 +340,9 @@ exports.getClassBroadsheetByExamType = async (req, res) => {
 
 
 exports.getFinalReportCard = async (req, res) => {
-  const studentId = req.user._id;
+  const studentId = req.params.studentId;
   const { termId } = req.params;
-console.log('getFinalReportCard called for student:', req.params.studentId, 'term:', req.params.termId);
+
   try {
     // Fetch the student with class info
     const student = await Student.findById(studentId)
@@ -403,7 +403,7 @@ console.log('getFinalReportCard called for student:', req.params.studentId, 'ter
       const avgMid = (openerPct + midtermPct) / 2;
       const finalPercentage = (avgMid * 0.3) + (endtermPct * 0.7);
 
-      const { grade, points, comment } = calculateGradeAndPoints(finalPercentage);
+      const { grade, points, comment } = calculateGradeAndPoints(Math.round(finalPercentage));
 
       finalResults.push({
         subject: endterm.subject, // already populated
