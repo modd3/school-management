@@ -15,7 +15,7 @@ export const fetchTeacherResults = async () => {
                 'Content-Type': 'application/json',
             },
         });
-        console.log('[fetchTeacherResults] Raw response:', response);
+        
         if (!response.ok) {
             const errorData = await response.json();
             console.log('[fetchTeacherResults] Error data:', errorData);
@@ -23,7 +23,6 @@ export const fetchTeacherResults = async () => {
         }
 
         const data = await response.json();
-    console.log('[fetchTeacherResults] Data received:', data);
     return data;
     } catch (error) {
         throw error;
@@ -55,3 +54,29 @@ export const fetchStudentResults = async (termId, examType) => {
     }
 }
 
+export const getClassSubjectsByTeacher = async (teacherId, term, academicYear) => {
+  const res = await fetch(`/api/admin/class-subjects/teacher/${teacherId}?term=${term}&academicYear=${academicYear}`, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('token')}`,
+    },
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message);
+  return data;
+};
+
+export const submitResult = async (payload) => {
+  const res = await fetch('/api/results', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('token')}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message);
+  return data;
+};

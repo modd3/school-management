@@ -14,7 +14,7 @@ const getAuthHeaders = () => {
     return headers;
 };
 
-// Fetch all classes
+// ✅ Fetch all classes
 export const getClasses = async () => {
     const response = await fetch(`${API_BASE_URL}/admin/classes`, {
         method: 'GET',
@@ -24,7 +24,7 @@ export const getClasses = async () => {
     return handleResponse(response);
 };
 
-// Create a new class
+// ✅ Create a new class
 export const createClass = async (classData) => {
     const response = await fetch(`${API_BASE_URL}/admin/classes`, {
         method: 'POST',
@@ -35,7 +35,7 @@ export const createClass = async (classData) => {
     return handleResponse(response);
 };
 
-// Fetch a single class by ID
+// ✅ Fetch a single class by ID
 export const getClassById = async (id) => {
     const response = await fetch(`${API_BASE_URL}/admin/classes/${id}`, {
         method: 'GET',
@@ -45,7 +45,7 @@ export const getClassById = async (id) => {
     return handleResponse(response);
 };
 
-// Update a class
+// ✅ Update a class
 export const updateClass = async (id, classData) => {
     const response = await fetch(`${API_BASE_URL}/admin/classes/${id}`, {
         method: 'PUT',
@@ -56,7 +56,7 @@ export const updateClass = async (id, classData) => {
     return handleResponse(response);
 };
 
-// Delete a class
+// ✅ Delete a class
 export const deleteClass = async (id) => {
     const response = await fetch(`${API_BASE_URL}/admin/classes/${id}`, {
         method: 'DELETE',
@@ -66,16 +66,22 @@ export const deleteClass = async (id) => {
     return handleResponse(response);
 };
 
+// ✅ Assign a teacher to a class
 export const assignClassTeacher = async (classId, teacherId) => {
-    const token = localStorage.getItem('token');
-    const res = await fetch(`${API_BASE_URL}/admin/classes/${classId}/assign-teacher`, {
+    const response = await fetch(`${API_BASE_URL}/admin/classes/${classId}/assign-teacher`, {
         method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token && { Authorization: `Bearer ${token}` }),
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ teacherId }),
     });
-    if (!res.ok) throw new Error('Failed to assign class teacher');
-    return res.json();
+    return handleResponse(response);
+};
+
+// ✅ Fetch students in a class for a specific academic year
+export const getStudentsInClass = async (classId, academicYear) => {
+    const response = await fetch(`${API_BASE_URL}/classes/${classId}/students?academicYear=${academicYear}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+    });
+    return handleResponse(response);
 };

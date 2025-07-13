@@ -11,10 +11,8 @@ export default function TeacherResultsPage() {
 
 useEffect(() => {
   async function fetchResults() {
-    console.log('[ResultsByMePage] Starting fetch...');
     try {
       const res = await fetchTeacherResults();
-      console.log('[ResultsByMePage] Results fetched:', res);
       setResults(res.results || []); 
     } catch (err) {
       console.error('[ResultsByMePage] Fetch error:', err);

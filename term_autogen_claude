@@ -1,0 +1,267 @@
+// utils/termGenerator.js - Improved version
+const Term = require('../models/Term');
+
+/**
+ * Auto-generates terms for a given academic year
+ * @param {string} academicYear - Format: "2024/2025"
+ * @param {object} config - Configuration for term generation
+ * @returns {Promise<Array>} Array of created terms
+ */
+async function generateTermsForAcademicYear(academicYear, config = {}) {
+  // Default configuration - updated based on your requirements
+  const defaultConfig = {
+    terms: [
+      {
+        name: 'Term 1',
+        startMonth: 1,  // January
+        startDay: 15,
+        endMonth: 4,    // April
+        endDay: 15
+      },
+      {
+        name: 'Term 2',
+        startMonth: 5,  // May
+        startDay: 1,
+        endMonth: 8,    // August
+        endDay: 15
+      },
+      {
+        name: 'Term 3',
+        startMonth: 9,  // September
+        startDay: 1,
+        endMonth: 12,   // December
+        endDay: 15
+      }
+    ]
+  };
+
+  const termConfig = { ...defaultConfig, ...config };
+  const [startYear, endYear] = academicYear.split('/').map(year => parseInt(year));
+  
+  const createdTerms = [];
+
+  // Check if terms already exist for this academic year
+  const existingTerms = await Term.find({ academicYear });
+  if (existingTerms.length > 0) {
+    console.log(`Terms already exist for academic year ${academicYear}`);
+    return existingTerms;
+  }
+
+  for (let i = 0; i < termConfig.terms.length; i++) {
+    const termData = termConfig.terms[i];
+    
+    // Fixed date calculation logic
+    let termStartYear, termEndYear;
+    
+    if (termData.startMonth >= 9) {
+      // Term 3 (Sept-Dec) - starts in first year of academic year
+      termStartYear = startYear;
+      termEndYear = startYear; // ends in same year
+    } else if (termData.startMonth >= 5) {
+      // Term 2 (May-Aug) - starts in second year of academic year
+      termStartYear = endYear;
+      termEndYear = endYear;
+    } else {
+      // Term 1 (Jan-Apr) - starts in second year of academic year
+      termStartYear = endYear;
+      termEndYear = endYear;
+    }
+
+    const startDate = new Date(termStartYear, termData.startMonth - 1, termData.startDay);
+    const endDate = new Date(termEndYear, termData.endMonth - 1, termData.endDay);
+
+    // Determine if this should be the current term
+    const now = new Date();
+    const isCurrent = now >= startDate && now <= endDate;
+
+    const newTerm = new Term({
+      name: termData.name,
+      academicYear,
+      startDate,
+      endDate,
+      isCurrent,
+      termNumber: i + 1 // Added term number for easier querying
+    });
+
+    const savedTerm = await newTerm.save();
+    createdTerms.push(savedTerm);
+    console.log(`Created term: ${termData.name} for ${academicYear} (${startDate.toDateString()} - ${endDate.toDateString()})`);
+  }
+
+  return createdTerms;
+}
+
+/**
+ * Auto-generates terms for current and next academic year
+ * Improved logic to determine academic year
+ */
+async function generateCurrentAndNextYearTerms() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
+  
+  // Determine academic year based on current date
+  // Academic year runs from September to August (Term 3 -> Term 1 -> Term 2)
+  let currentAcademicYear;
+  if (currentMonth >= 9) {
+    // September onwards - new academic year starts
+    currentAcademicYear = `${currentYear}/${currentYear + 1}`;
+  } else {
+    // January to August - continuing previous academic year
+    currentAcademicYear = `${currentYear - 1}/${currentYear}`;
+  }
+  
+  const nextAcademicYear = currentMonth >= 9 ? 
+    `${currentYear + 1}/${currentYear + 2}` : 
+    `${currentYear}/${currentYear + 1}`;
+
+  try {
+    // Generate terms for current academic year
+    const currentTerms = await generateTermsForAcademicYear(currentAcademicYear);
+    
+    // Generate terms for next academic year
+    const nextTerms = await generateTermsForAcademicYear(nextAcademicYear);
+    
+    console.log(`Successfully generated terms for ${currentAcademicYear} and ${nextAcademicYear}`);
+    
+    // Update current term after generation
+    await updateCurrentTerm();
+    
+    return { currentTerms, nextTerms };
+  } catch (error) {
+    console.error('Error generating terms:', error);
+    throw error;
+  }
+}
+
+/**
+ * Updates the current term flag based on current date
+ */
+async function updateCurrentTerm() {
+  const now = new Date();
+  
+  try {
+    // Reset all terms to not current
+    await Term.updateMany({}, { isCurrent: false });
+    
+    // Find and set the current term
+    const currentTerm = await Term.findOne({
+      startDate: { $lte: now },
+      endDate: { $gte: now }
+    });
+    
+    if (currentTerm) {
+      currentTerm.isCurrent = true;
+      await currentTerm.save();
+      console.log(`Updated current term to: ${currentTerm.name} - ${currentTerm.academicYear}`);
+      return currentTerm;
+    } else {
+      console.log('No current term found for today\'s date');
+      
+      // Optional: Find the next upcoming term
+      const nextTerm = await Term.findOne({
+        startDate: { $gt: now }
+      }).sort({ startDate: 1 });
+      
+      if (nextTerm) {
+        console.log(`Next term: ${nextTerm.name} starts on ${nextTerm.startDate.toDateString()}`);
+      }
+      
+      return null;
+    }
+  } catch (error) {
+    console.error('Error updating current term:', error);
+    throw error;
+  }
+}
+
+/**
+ * Gets the current active term
+ */
+async function getCurrentTerm() {
+  try {
+    let currentTerm = await Term.findOne({ isCurrent: true });
+    
+    if (!currentTerm) {
+      // If no current term is set, try to update and find one
+      currentTerm = await updateCurrentTerm();
+    }
+    
+    return currentTerm;
+  } catch (error) {
+    console.error('Error getting current term:', error);
+    throw error;
+  }
+}
+
+/**
+ * Gets terms for a specific academic year
+ */
+async function getTermsForAcademicYear(academicYear) {
+  try {
+    return await Term.find({ academicYear }).sort({ startDate: 1 });
+  } catch (error) {
+    console.error('Error getting terms for academic year:', error);
+    throw error;
+  }
+}
+
+/**
+ * Gets the next term after the current one
+ */
+async function getNextTerm() {
+  try {
+    const currentTerm = await getCurrentTerm();
+    if (!currentTerm) {
+      // If no current term, get the earliest upcoming term
+      return await Term.findOne({
+        startDate: { $gt: new Date() }
+      }).sort({ startDate: 1 });
+    }
+    
+    // Find next term in the same academic year first
+    let nextTerm = await Term.findOne({
+      academicYear: currentTerm.academicYear,
+      startDate: { $gt: currentTerm.endDate }
+    }).sort({ startDate: 1 });
+    
+    // If no next term in same academic year, look in next academic year
+    if (!nextTerm) {
+      nextTerm = await Term.findOne({
+        startDate: { $gt: currentTerm.endDate }
+      }).sort({ startDate: 1 });
+    }
+    
+    return nextTerm;
+  } catch (error) {
+    console.error('Error getting next term:', error);
+    throw error;
+  }
+}
+
+/**
+ * Validates if a given academic year format is correct
+ */
+function validateAcademicYear(academicYear) {
+  const regex = /^\d{4}\/\d{4}$/;
+  if (!regex.test(academicYear)) {
+    return { valid: false, error: 'Academic year must be in format YYYY/YYYY' };
+  }
+  
+  const [startYear, endYear] = academicYear.split('/').map(Number);
+  if (endYear !== startYear + 1) {
+    return { valid: false, error: 'End year must be one year after start year' };
+  }
+  
+  return { valid: true };
+}
+
+module.exports = {
+  generateTermsForAcademicYear,
+  generateCurrentAndNextYearTerms,
+  updateCurrentTerm,
+  getCurrentTerm,
+  getTermsForAcademicYear,
+  getNextTerm,
+  validateAcademicYear
+};

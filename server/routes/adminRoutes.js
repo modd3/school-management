@@ -39,7 +39,7 @@ const {
 
 // Subject Management (CRUD)
 const {
-    createSubject, getAllSubjects, getSubjectById, updateSubject, updateSubjectTeachers, deleteSubject
+    createSubject, getAllSubjects, getSubjectById, updateSubject,  deleteSubject
 } = require('../controllers/subjectController');
 
 // Term Management (CRUD)
@@ -50,6 +50,16 @@ const {
 // Report Card / Publishing
 const { publishTermResults } = require('../controllers/reportCardController'); // Your existing import
 
+const {
+  assignSubjectToTeacher,
+  getSubjectsByTeacher,
+  getSubjectsByClass,
+  updateAssignment,
+  deleteAssignment,
+  enrollStudentInSubject,
+  getStudentsInSubject,
+} = require('../controllers/classSubjectController');
+// Class-Subject Management (Assignments)
 
 // --- Apply Middleware ---
 router.use(protect);
@@ -102,7 +112,6 @@ router.put('/classes/:classId/assign-teacher', assignClassTeacher); // Assign a 
 router.post('/subjects', createSubject);
 router.get('/subjects', getAllSubjects);
 router.get('/subjects/:id', getSubjectById);
-router.put('/subjects/:id/teachers', updateSubjectTeachers);
 router.put('/subjects/:id', updateSubject);
 router.delete('/subjects/:id', deleteSubject); // Deactivates subject
 
@@ -115,6 +124,15 @@ router.delete('/terms/:id', deleteTerm); // Deactivates term
 
 // 8. Report Card / Publishing 
 router.post('/reports/publish-term-results/:termId', publishTermResults);
+
+// 9. Class-Subject Assignments (map subject to teacher in a class)
+router.post('/class-subjects', assignSubjectToTeacher);
+router.put('/class-subjects/:id', updateAssignment);
+router.delete('/class-subjects/:id', deleteAssignment);
+router.get('/class-subjects/teacher/:teacherId', getSubjectsByTeacher);
+router.get('/class-subjects/class/:classId', getSubjectsByClass);
+router.post('/class-subjects/enroll', enrollStudentInSubject);
+router.get('/class-subjects/:classSubjectId/students', getStudentsInSubject);
 
 
 module.exports = router;

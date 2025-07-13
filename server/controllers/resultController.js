@@ -11,9 +11,9 @@ const {getStudentResultsByExamType} = require('../utils/examResults');
 // @route   POST /api/teacher/results/enter
 // @access  Private (Teacher, Class Teacher, Subject Teacher)
 exports.enterMarks = async (req, res) => {
-    const { studentId, subjectId, termId, examType, marksObtained, outOf, comment } = req.body;
+    const { studentId, classSubjectId, termId, examType, marksObtained, outOf, comment } = req.body;
 
-    if (!studentId || !subjectId || !termId || !examType || marksObtained === undefined || outOf === undefined) {
+    if (!studentId || !classSubjectId || !termId || !examType || marksObtained === undefined || outOf === undefined) {
         return res.status(400).json({ message: 'Missing required fields: studentId, subjectId, termId, examType, marksObtained, outOf' });
     }
 
@@ -22,7 +22,7 @@ exports.enterMarks = async (req, res) => {
         const { grade, points } = calculateGradeAndPoints(percentage)
 
         // Check if a result already exists for this student, subject, term, and exam type
-        let result = await Result.findOne({ student: studentId, subject: subjectId, term: termId, examType });
+        let result = await Result.findOne({ student: studentId, subject: classSubjectId, term: termId, examType });
 
         if (result) {
             result.marksObtained = marksObtained;
@@ -34,12 +34,12 @@ exports.enterMarks = async (req, res) => {
             await result.save();
             res.status(200).json({ message: 'Marks updated successfully', result });
             await Student.findByIdAndUpdate(studentId, {
-                $pull: { results: { subject: subjectId, term: termId, examType } } // Remove duplicate
+                $pull: { results: { subject: classSubjectId, term: termId, examType } } // Remove duplicate
                 });
                 await Student.findByIdAndUpdate(studentId, {
                 $push: {
                     results: {
-                    subject: subjectId,
+                    subject: classSubjectId,
                     term: termId,
                     examType,
                     marksObtained,
@@ -54,7 +54,7 @@ exports.enterMarks = async (req, res) => {
         } else {
             result = await Result.create({
                 student: studentId,
-                subject: subjectId,
+                subject: classSubjectId,
                 term: termId,
                 examType,
                 marksObtained,

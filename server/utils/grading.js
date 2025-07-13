@@ -14,7 +14,6 @@ const kcseGradingScale = [
 ];
 
 function calculateGradeAndPoints(percentage) {
-  console.log(`🧮 Grading percentage: ${percentage}`);
   for (const { range, grade, points } of kcseGradingScale) {
     const [min, max] = range;
     if (percentage >= min && percentage <= max) {

@@ -1,240 +1,147 @@
-const Class = require('../models/Class');
-const Teacher = require('../models/Teacher'); // For assigning class teachers
-const Student = require('../models/Student'); // For populating students in a class
+// controllers/classController.js
 const asyncHandler = require('express-async-handler');
+const Class = require('../models/Class');
+const User = require('../models/User');
 const mongoose = require('mongoose');
 
-// @desc    Create a new Class
-// @route   POST /api/admin/classes
-// @access  Private (Admin)
+// @desc    Create a new class
+
 exports.createClass = asyncHandler(async (req, res) => {
-    const { name, stream, classTeacher } = req.body;
+  const { name, grade, classCode, academicYear, stream, classTeacher } = req.body;
 
-    // Basic validation
-    if (!name) {
-        return res.status(400).json({ message: 'Class name is required.' });
-    }
+  // Validate required fields
+  if (!name || !grade || !classCode) {
+    return res.status(400).json({ message: 'Name, grade and class code are required' });
+  }
 
-    // Check if a class with the same name already exists
-    const existingClass = await Class.findOne({ name });
-    if (existingClass) {
-        return res.status(400).json({ message: 'Class with this name already exists.' });
-    }
+  // Check uniqueness
+  const existing = await Class.findOne({ classCode, academicYear });
+  if (existing) {
+    return res.status(409).json({ message: 'Class code already exists for this academic year' });
+  }
 
-    // Validate and link classTeacher if provided
-    if (classTeacher) {
-        if (!mongoose.Types.ObjectId.isValid(classTeacher)) {
-            return res.status(400).json({ message: 'Invalid classTeacher ID format.' });
-        }
-        const teacher = await Teacher.findById(classTeacher);
-        if (!teacher) {
-            return res.status(404).json({ message: 'Class teacher not found.' });
-        }
-        // Check if the teacher is already a class teacher for another class
-        if (teacher.classTaught) {
-            return res.status(400).json({ message: `Teacher ${teacher.firstName} ${teacher.lastName} is already assigned as a class teacher for another class.` });
-        }
-    }
+  const newClass = new Class({
+    name,
+    grade,
+    classCode: classCode.toUpperCase(),
+    academicYear,
+    stream: Array.isArray(stream) ? stream : [],
+    classTeacher: classTeacher || null,
+  });
 
-    // Validate streams if provided
-    if (stream && !Array.isArray(stream)) {
-        return res.status(400).json({ message: 'Stream must be an array of strings.' });
-    }
+  await newClass.save();
 
-    const newClass = await Class.create({
-        name,
-        stream: stream || [],
-        classTeacher: classTeacher || undefined // Link teacher if provided
+  res.status(201).json({ message: 'Class created successfully', class: newClass });
+});
+
+
+exports.getAllClasses = asyncHandler(async (req, res) => {
+  const classes = await Class.find()
+    .populate('classTeacher', 'firstName lastName staffId')
+    .lean();
+  res.status(200).json({ success: true, count: classes.length, classes });
+});
+
+
+exports.getClassById = asyncHandler(async (req, res) => {
+  const foundClass = await Class.findById(req.params.id)
+    .populate('classTeacher', 'firstName lastName staffId')
+    .lean();
+
+  if (!foundClass) {
+    return res.status(404).json({ message: 'Class not found' });
+  }
+
+  res.json({ success: true, class: foundClass });
+});
+
+
+exports.updateClass = asyncHandler(async (req, res) => {
+  const { classCode, name, academicYear } = req.body;
+  const classToUpdate = await Class.findById(req.params.id);
+
+  if (!classToUpdate) {
+    return res.status(404).json({ message: 'Class not found' });
+  }
+
+  if (classCode) classToUpdate.classCode = classCode;
+  if (name) classToUpdate.name = name;
+  if (academicYear) classToUpdate.academicYear = academicYear;
+
+  await classToUpdate.save();
+  res.json({ success: true, class: classToUpdate });
+});
+
+
+exports.deleteClass = asyncHandler(async (req, res) => {
+  const classToDelete = await Class.findById(req.params.id);
+
+  if (!classToDelete) {
+    return res.status(404).json({ message: 'Class not found' });
+  }
+
+  await classToDelete.deleteOne();
+  res.json({ success: true, message: 'Class deleted' });
+});
+
+
+exports.assignClassTeacher = asyncHandler(async (req, res) => {
+  const { classId } = req.params;
+  const { teacherId } = req.body;
+
+  // 🔒 Validate ObjectId format
+  if (!mongoose.Types.ObjectId.isValid(teacherId)) {
+    return res.status(400).json({ message: 'Invalid teacher ID format' });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(classId)) {
+    return res.status(400).json({ message: 'Invalid class ID format' });
+  }
+
+  // ✅ Fetch the teacher (must be a user with role "teacher")
+  const teacherUser = await User.findById(teacherId);
+
+  if (!teacherUser || teacherUser.role !== 'teacher') {
+    return res.status(400).json({ message: 'Invalid teacher ID or user is not a teacher' });
+  }
+
+  // ✅ Update the class
+  const updatedClass = await Class.findByIdAndUpdate(
+    classId,
+    { classTeacher: teacherId },
+    { new: true }
+  ).populate('classTeacher', 'firstName lastName email');
+
+  if (!updatedClass) {
+    return res.status(404).json({ message: 'Class not found' });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `Assigned ${teacherUser.firstName} ${teacherUser.lastName} as class teacher.`,
+    class: updatedClass,
+  });
+});
+
+
+exports.getStudentsInClass = asyncHandler(async (req, res) => {
+  const { classId } = req.params;
+
+  if (!classId) {
+    return res.status(400).json({ message: 'Class ID is required' });
+  }
+
+  // Find student-class mappings for this class
+  const studentClassMappings = await StudentClass.find({ classId, status: 'active' })
+    .populate({
+      path: 'studentId',
+      select: 'firstName lastName admissionNumber gender',
     });
 
-    // If a class teacher was assigned during creation, update their classTaught field
-    if (classTeacher) {
-        await Teacher.findByIdAndUpdate(classTeacher, { classTaught: newClass._id });
-    }
+  // Extract student data
+  const students = studentClassMappings
+    .map(mapping => mapping.studentId)
+    .filter(student => student); // Filter out nulls in case of dangling references
 
-    res.status(201).json({ success: true, message: 'Class created successfully', class: newClass });
-});
-
-// @desc    Get all Classes
-// @route   GET /api/admin/classes
-// @access  Private (Admin)
-exports.getAllClasses = asyncHandler(async (req, res) => {
-    const classes = await Class.find({})
-                               .populate('classTeacher', 'firstName lastName staffId') // Populate class teacher info
-                               .populate('students', 'firstName lastName admissionNumber'); // Populate students in the class
-    res.status(200).json({ success: true, count: classes.length, classes });
-});
-
-// @desc    Get single Class by ID
-// @route   GET /api/admin/classes/:id
-// @access  Private (Admin)
-exports.getClassById = asyncHandler(async (req, res) => {
-    const classObj = await Class.findById(req.params.id)
-                                .populate('classTeacher', 'firstName lastName staffId')
-                                .populate('students', 'firstName lastName admissionNumber');
-    if (!classObj) {
-        return res.status(404).json({ message: 'Class not found.' });
-    }
-    res.status(200).json({ success: true, class: classObj });
-});
-
-// @desc    Update Class details
-// @route   PUT /api/admin/classes/:id
-// @access  Private (Admin)
-exports.updateClass = asyncHandler(async (req, res) => {
-    const { name, streams, classTeacher, isActive } = req.body;
-    const classId = req.params.id;
-
-    const classObj = await Class.findById(classId);
-    if (!classObj) {
-        return res.status(404).json({ message: 'Class not found.' });
-    }
-
-    // Check for duplicate name if it's being updated
-    if (name && name !== classObj.name) {
-        const existingClass = await Class.findOne({ name });
-        if (existingClass && existingClass._id.toString() !== classId) {
-            return res.status(400).json({ message: 'Class with this name already exists.' });
-        }
-    }
-
-    // --- Handle classTeacher update ---
-    if (classTeacher !== undefined) { // Check if 'classTeacher' was explicitly sent (can be null to unassign)
-        if (classTeacher !== null && !mongoose.Types.ObjectId.isValid(classTeacher)) {
-            return res.status(400).json({ message: 'Invalid classTeacher ID format.' });
-        }
-
-        // Unlink from old teacher (if any)
-        if (classObj.classTeacher && classObj.classTeacher.toString() !== classTeacher) {
-            await Teacher.findByIdAndUpdate(classObj.classTeacher, { classTaught: null });
-        }
-
-        if (classTeacher !== null) {
-            const newTeacher = await Teacher.findById(classTeacher);
-            if (!newTeacher) {
-                return res.status(404).json({ message: 'New class teacher not found.' });
-            }
-            // Prevent assigning a teacher if they are already a class teacher for another class
-            if (newTeacher.classTaught && newTeacher.classTaught.toString() !== classId) {
-                return res.status(400).json({ message: `Teacher ${newTeacher.firstName} ${newTeacher.lastName} is already assigned as a class teacher to another class.` });
-            }
-            // Assign this class to the new teacher's classTaught field
-            await Teacher.findByIdAndUpdate(classTeacher, { classTaught: classObj._id });
-            classObj.classTeacher = classTeacher; // Update class's classTeacher
-        } else { // classTeacher is null (unassign)
-            classObj.classTeacher = null;
-        }
-    }
-
-    // Validate and update streams if provided
-    if (streams) {
-        if (!Array.isArray(streams)) {
-            return res.status(400).json({ message: 'Streams must be an array of strings.' });
-        }
-        classObj.streams = streams;
-    }
-
-    // Update basic fields
-    if (name) classObj.name = name;
-    if (typeof isActive === 'boolean') classObj.isActive = isActive;
-
-    await classObj.save();
-
-    res.status(200).json({ success: true, message: 'Class updated successfully', class: classObj });
-});
-
-
-// @desc    Delete (Hard Delete) a Class
-// @route   DELETE /api/admin/classes/:id
-// @access  Private (Admin)
-exports.deleteClass = async (req, res) => {
-  try {
-    const classToDelete = await Class.findById(req.params.id);
-    if (!classToDelete) return res.status(404).json({ message: 'Class not found' });
-
-    // Unassign teacher if assigned
-    if (classToDelete.classTeacher) {
-      await Teacher.findByIdAndUpdate(classToDelete.classTeacher, {
-        $unset: { classTaught: "" }
-      });
-    }
-
-    // Optional: Unassign students from the class
-    if (classToDelete.students && classToDelete.students.length > 0) {
-      await Student.updateMany(
-        { _id: { $in: classToDelete.students } },
-        { $unset: { currentClass: "", stream: "" } }
-      );
-    }
-
-    await Class.findByIdAndDelete(req.params.id);
-
-    res.json({ message: 'Class deleted successfully and related links cleaned.' });
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to delete class', error: err.message });
-  }
-};
-
-
-// @desc    Assign a Class Teacher to a Class
-// @route   PUT /api/admin/classes/:classId/assign-teacher
-// @access  Private (Admin)
-exports.assignClassTeacher = asyncHandler(async (req, res) => {
-    const { classId } = req.params;
-    const { teacherId, remove } = req.body; // Expect teacherId, remove: true to unassign
-
-    if (!teacherId && !remove) { // If assigning, teacherId is required
-        return res.status(400).json({ message: 'Please provide a teacherId to assign or unassign.' });
-    }
-    if (teacherId && !mongoose.Types.ObjectId.isValid(teacherId)) {
-        return res.status(400).json({ message: 'Invalid teacherId format.' });
-    }
-
-    const classObj = await Class.findById(classId);
-    if (!classObj) {
-        return res.status(404).json({ message: 'Class not found.' });
-    }
-
-    let teacher = null;
-    if (teacherId) {
-        teacher = await Teacher.findById(teacherId);
-        if (!teacher) {
-            return res.status(404).json({ message: 'Teacher not found.' });
-        }
-    }
-
-    let message;
-    if (remove) {
-        // If the current class teacher is the one being removed
-        if (classObj.classTeacher && classObj.classTeacher.toString() === teacherId) {
-            classObj.classTeacher = null;
-            await classObj.save();
-
-            // Unset this class from the teacher's classTaught field
-            if (teacher) { // Teacher might be null if only removing by ID
-                await Teacher.findByIdAndUpdate(teacherId, { classTaught: null });
-            }
-            message = `Class teacher removed from ${classObj.name}.`;
-        } else {
-            return res.status(400).json({ message: `Teacher ${teacher ? teacher.lastName : teacherId} is not the current class teacher for ${classObj.name}.` });
-        }
-    } else { // Assigning
-        // Check if class already has a teacher (and it's not the same teacher being reassigned)
-        if (classObj.classTeacher && classObj.classTeacher.toString() !== teacherId) {
-            return res.status(400).json({ message: `Class ${classObj.name} already has a class teacher. Please unassign them first.` });
-        }
-        // Check if teacher is already a class teacher for another class
-        if (teacher.classTaught && teacher.classTaught.toString() !== classId) {
-            return res.status(400).json({ message: `Teacher ${teacher.firstName} ${teacher.lastName} is already assigned as a class teacher to another class. Please unassign them first.` });
-        }
-
-        classObj.classTeacher = teacherId;
-        await classObj.save();
-
-        teacher.classTaught = classId;
-        await teacher.save();
-        message = `Teacher ${teacher.firstName} ${teacher.lastName} assigned as class teacher for ${classObj.name}.`;
-    }
-
-    res.status(200).json({ success: true, message, class: classObj });
+  res.status(200).json({ success: true, count: students.length, students });
 });

@@ -1,160 +1,186 @@
 import React, { useEffect, useState } from 'react';
-import { calculateGradeAndPoints } from '../../utils/grading'; // Adjust path as needed
+import {
+  getClassSubjectsByTeacher,
+  submitResult,
+} from '../../api/results';
+import { getStudentsInClass } from '../../api/classes'; // expects backend endpoint
+import { toast } from 'react-toastify';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-export default function EnterMarksPage() {
+export default function EnterMarksPage({ user }) {
+  const [classSubjects, setClassSubjects] = useState([]);
+  const [selectedClassSubject, setSelectedClassSubject] = useState('');
   const [students, setStudents] = useState([]);
-  const [subjects, setSubjects] = useState([]);
-  const [terms, setTerms] = useState([]);
-  const [selectedStudent, setSelectedStudent] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState('');
-  const [selectedTerm, setSelectedTerm] = useState('');
-  const [examType, setExamType] = useState('Opener');
-  const [marksObtained, setMarksObtained] = useState('');
-  const [outOf, setOutOf] = useState('');
-  const [comment, setComment] = useState('');
-  const [message, setMessage] = useState('');
-
-  // Live computed values
-  const percentage = (marksObtained && outOf) ? ((marksObtained / outOf) * 100).toFixed(2) : '';
-  const { grade, points } = calculateGradeAndPoints(Number(percentage));
+  const [examType, setExamType] = useState('');
+  const [academicYear, setAcademicYear] = useState('2025-2026'); // Can be auto-filled later
+  const [term, setTerm] = useState('');
+  const [marks, setMarks] = useState({}); // { studentId: { marksObtained, outOf } }
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-
-    fetch(`${API_BASE_URL}/teacher/students`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setStudents(data.students || []));
-
-    fetch(`${API_BASE_URL}/teacher/my-subjects`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setSubjects(data.subjects || []));
-
-    fetch(`${API_BASE_URL}/teacher/terms`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setTerms(data.terms || []));
-  }, []);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMessage('');
-    const token = localStorage.getItem('token');
-
-    const res = await fetch(`${API_BASE_URL}/teacher/results/enter`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        studentId: selectedStudent,
-        subjectId: selectedSubject,
-        termId: selectedTerm,
-        examType,
-        marksObtained: Number(marksObtained),
-        outOf: Number(outOf),
-        percentage: Number(percentage),
-        grade,
-        points,
-        comment
-      })
-    });
-
-    const data = await res.json();
-    if (res.ok) {
-      setMessage(`✅ Marks saved! Grade: ${grade}, Points: ${points}`);
-    } else {
-      setMessage(data.message || '❌ Error saving marks');
+    async function loadClassSubjects() {
+      try {
+        const res = await getClassSubjectsByTeacher(user._id, term, academicYear);
+        setClassSubjects(res.classSubjects || []);
+      } catch (err) {
+        toast.error('Failed to load assigned class-subjects');
+      }
     }
+
+    if (term && academicYear) {
+      loadClassSubjects();
+    }
+  }, [term, academicYear, user._id]);
+
+  useEffect(() => {
+    async function loadStudents() {
+      const selected = classSubjects.find(cs => cs._id === selectedClassSubject);
+      if (!selected) return;
+      try {
+        const res = await getStudentsInClass(selected.class._id, academicYear);
+        setStudents(res.students || []);
+      } catch (err) {
+        toast.error('Failed to load students');
+      }
+    }
+
+    if (selectedClassSubject) {
+      loadStudents();
+    }
+  }, [selectedClassSubject]);
+
+  const handleMarkChange = (studentId, field, value) => {
+    setMarks(prev => ({
+      ...prev,
+      [studentId]: {
+        ...prev[studentId],
+        [field]: value,
+      },
+    }));
   };
 
+
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  const token = localStorage.getItem('token');
+
+  const res = await fetch(`${API_BASE_URL}/teacher/results/enter`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      studentId: selectedStudent,
+      subjectId: selectedSubject,
+      termId: selectedTerm,
+      examType,
+      marksObtained: Number(marksObtained),
+      outOf: Number(outOf),
+      percentage: Number(percentage),
+      grade,
+      points,
+      comment
+    })
+  });
+
+  const data = await res.json();
+  if (res.ok) {
+    toast.success(`✅ Marks saved! Grade: ${grade}, Points: ${points}`);
+  } else {
+    toast.error(data.message || '❌ Error saving marks');
+  }
+};
+
   return (
-    <div className="max-w-xl mx-auto mt-8 p-6 bg-white rounded shadow">
+    <div className="max-w-4xl mx-auto p-6 bg-white rounded shadow">
       <h2 className="text-2xl font-bold mb-4">Enter Marks</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <select value={selectedStudent} onChange={e => setSelectedStudent(e.target.value)} required className="w-full border p-2 rounded">
-          <option value="">Select Student</option>
-          {students.map(s => (
-            <option key={s._id} value={s._id}>{s.firstName} {s.lastName}</option>
-          ))}
-        </select>
 
-      <select
-  value={selectedSubject}
-  onChange={e => setSelectedSubject(e.target.value)}
-  required
-  className="w-full border p-2 rounded"
->
-  <option value="">Select Subject</option>
-  {subjects.map(s => (
-    <option key={s._id} value={s._id}>
-      {s.code}
-    </option>
-  ))}
-</select>
-
-        <select value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)} required className="w-full border p-2 rounded">
+      <div className="flex gap-4 mb-4">
+        <select value={term} onChange={e => setTerm(e.target.value)} className="border px-3 py-2 rounded w-full">
           <option value="">Select Term</option>
-          {terms.map(t => (
-            <option key={t._id} value={t._id}>{t.name}</option>
-          ))}
+          <option value="Term 1">Term 1</option>
+          <option value="Term 2">Term 2</option>
+          <option value="Term 3">Term 3</option>
         </select>
 
-        <select value={examType} onChange={e => setExamType(e.target.value)} required className="w-full border p-2 rounded">
+        <input
+          type="text"
+          value={academicYear}
+          onChange={e => setAcademicYear(e.target.value)}
+          className="border px-3 py-2 rounded w-full"
+          placeholder="Academic Year"
+        />
+      </div>
+
+      <div className="mb-4">
+        <select value={selectedClassSubject} onChange={e => setSelectedClassSubject(e.target.value)} className="border px-3 py-2 rounded w-full">
+          <option value="">Select Class & Subject</option>
+          {classSubjects.map(cs => (
+            <option key={cs._id} value={cs._id}>
+              {cs.class.name} - {cs.subject.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="mb-4">
+        <select value={examType} onChange={e => setExamType(e.target.value)} className="border px-3 py-2 rounded w-full">
+          <option value="">Select Exam Type</option>
           <option value="Opener">Opener</option>
           <option value="Midterm">Midterm</option>
           <option value="Endterm">Endterm</option>
         </select>
+      </div>
 
-        <input
-          type="number"
-          value={marksObtained}
-          onChange={e => setMarksObtained(e.target.value)}
-          placeholder="Marks Obtained"
-          min={0}
-          required
-          className="w-full border p-2 rounded"
-        />
-
-        <input
-          type="number"
-          value={outOf}
-          onChange={e => setOutOf(e.target.value)}
-          placeholder="Out of"
-          min={1}
-          required
-          className="w-full border p-2 rounded"
-        />
-
-        {percentage && (
-          <div className="bg-gray-100 p-3 rounded text-sm">
-            📊 <strong>Percentage:</strong> {percentage}%<br />
-            🏷️ <strong>Grade:</strong> {grade}<br />
-            ⭐ <strong>Points:</strong> {points}
-          </div>
-        )}
-
-        <input
-          type="text"
-          value={comment}
-          onChange={e => setComment(e.target.value)}
-          placeholder="Comment (optional)"
-          className="w-full border p-2 rounded"
-        />
-
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">
-          Save Marks
-        </button>
-      </form>
-
-      {message && <div className="mt-4 text-center text-green-700">{message}</div>}
+      {students.length > 0 && (
+        <table className="w-full border mt-6">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="p-2 text-left">Student</th>
+              <th className="p-2">Marks</th>
+              <th className="p-2">Out Of</th>
+              <th className="p-2">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {students.map((s) => (
+              <tr key={s._id} className="border-t">
+                <td className="p-2">{s.firstName} {s.lastName}</td>
+                <td className="p-2">
+                  <input
+                    type="number"
+                    min="0"
+                    name="marksObtained"
+                    value={marks[s._id]?.marksObtained || ''}
+                    onChange={(e) => handleMarkChange(s._id, 'marksObtained', e.target.value)}
+                    className="border px-2 py-1 w-20"
+                    required
+                  />
+                </td>
+                <td className="p-2">
+                  <input
+                    type="number"
+                    min="1"
+                    name="outOf"
+                    value={marks[s._id]?.outOf || ''}
+                    onChange={(e) => handleMarkChange(s._id, 'outOf', e.target.value)}
+                    className="border px-2 py-1 w-20"
+                    required
+                  />
+                </td>
+                <td className="p-2">
+                  <button
+                    onClick={() => handleSubmit(s._id)}
+                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                  >
+                    Save
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

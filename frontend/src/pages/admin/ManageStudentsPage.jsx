@@ -18,8 +18,7 @@ export default function ManageStudentsPage() {
     setError(null);
     try {
       const data = await getStudents(); 
-      console.log("API students:", data);
-      setStudents(data.students || []); // Assuming your backend returns { success: true, students: [...] }
+      setStudents(data.students || []); 
     } catch (err) {
       console.error("Failed to load students:", err);
       setError(err.message || 'Failed to load students.');
@@ -49,7 +48,7 @@ export default function ManageStudentsPage() {
   const handleDeleteStudent = async (studentId) => {
     if (window.confirm('Are you sure you want to delete this student?')) {
       try {
-        await deleteStudent(studentId); // Use the real API call
+        await deleteStudent(studentId); 
         setStudents(students.filter(student => student._id !== studentId));
       } catch (err) {
         console.error("Failed to delete student:", err);
@@ -59,7 +58,7 @@ export default function ManageStudentsPage() {
   };
 
   const handleEditStudent = (studentId) => {
-    navigate(`/admin/students/edit/${studentId}`); // You'll need to create this route and page
+    navigate(`/admin/students/edit/${studentId}`); 
   };
 
   const handleAddStudent = () => {

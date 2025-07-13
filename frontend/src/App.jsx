@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Import your pages
 import LoginPage from './pages/LoginPage';
@@ -25,6 +27,7 @@ import ReportCardPage from './pages/teacher/ReportCardPage';
 import TeacherResultsPage from './pages/teacher/TeacherResultsPage';
 import StudentExamReportPage from './pages/student/StudentExamReportPage';
 import StudentFinalReportPage from './pages/student/StudentFinalReportPage'; // Import the new StudentFinalReportPage
+import AssignClassSubject from './pages/admin/AssignClassSubjects';
 
 // A simple Protected Route component (make sure this is robust in your actual app)
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -63,6 +66,7 @@ function App() {
         <div className="App">
           {/* Show DashboardLink on all pages except dashboard, login, and register */}
           <DashboardLinkWrapper />
+          <ToastContainer position="top-right" autoClose={3000} hideProgressBar />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} /> {/* Keep for now, but remember it's admin-only backend */}
@@ -157,7 +161,15 @@ function App() {
               }
             />
 
-            {/* Placeholder for other roles' routes */}
+            <Route
+  path="/admin/assign-class-subject"
+  element={
+    <ProtectedRoute allowedRoles={['admin']}>
+      <AssignClassSubject />
+    </ProtectedRoute>
+  }
+/>
+
             {/* Example: Teacher Routes (add more as you implement pages) */}
             <Route
               path="/teacher/enter-marks"

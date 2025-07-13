@@ -120,11 +120,25 @@ exports.createTeacher = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/teachers
 // @access  Private (Admin)
 exports.getAllTeachers = asyncHandler(async (req, res) => {
-    const teachers = await Teacher.find({})
-                                  .populate('userId', 'email role isActive') // Populate associated user info
-                                  .populate('subjectsTaught', 'name code') // Populate subjects taught
-                                  .populate('classTaught', 'name'); // Populate class taught (if any)
-    res.status(200).json({ success: true, count: teachers.length, teachers });
+  const teachers = await Teacher.find()
+    .populate('userId', 'email role'); // Only pull needed fields from User
+
+  const mappedTeachers = teachers.map(t => ({
+    _id: t._id, // Profile ID (Teacher._id)
+    userId: t.userId?._id || null, // ✅ User ID (for classTeacher reference)
+    firstName: t.firstName,
+    lastName: t.lastName,
+    staffId: t.staffId,
+    teacherType: t.teacherType,
+    phoneNumber: t.phoneNumber,
+    email: t.userId?.email || '',
+  }));
+
+  res.status(200).json({
+    success: true,
+    count: mappedTeachers.length,
+    teachers: mappedTeachers,
+  });
 });
 
 // @desc    Get single Teacher by ID

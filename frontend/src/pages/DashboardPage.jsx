@@ -1,21 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getTerms } from '../api/terms';
+import { useNavigate, Link } from 'react-router-dom';
 import {
-  FaSignOutAlt,
-  FaUserCircle,
-  FaLaptopHouse,
-  FaChalkboardTeacher,
-  FaUserGraduate,
-  FaUsers,
-  FaUserPlus,
-  FaListAlt,
-  FaClipboardList,
-  FaBookOpen,
-  FaFileAlt,
-  FaCalendarAlt,
+  FaSignOutAlt, FaUserCircle, FaUserPlus, FaUsers, FaChalkboardTeacher,
+  FaUserGraduate, FaClipboardList, FaBookOpen, FaListAlt, FaFileAlt,
+  FaCalendarAlt, FaLaptopHouse
 } from 'react-icons/fa';
+import DashboardSection from '../components/DashboardSection';
 
 const DashboardPage = () => {
   const { user, logout } = useAuth();
@@ -23,315 +15,195 @@ const DashboardPage = () => {
   const [terms, setTerms] = useState([]);
 
   useEffect(() => {
-    async function loadTerms() {
-      const data = await getTerms();
-      setTerms(data.terms || []);
-      if (data.terms?.length > 0) {
-        setTermId(data.terms[0]._id); // Default to first term
+    const loadTerms = async () => {
+      try {
+        const res = await getTerms();
+        setTerms(res.terms || []);
+        if (res.terms?.length > 0) {
+          setTermId(res.terms[0]._id);
+        }
+      } catch (err) {
+        console.error('Failed to fetch terms');
       }
-    }
+    };
     loadTerms();
   }, []);
-
-  // Role-based dashboard sections
-  const renderRoleActions = (role, teacherType) => {
-    switch (role) {
-      case 'admin':
-        return (
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Link to="/admin/create-user" className="dashboard-link">
-              <FaUserPlus className="inline-block mr-2" />
-              Create User
-            </Link>
-            <Link to="/admin/users" className="dashboard-link">
-              <FaUsers className="inline-block mr-2" />
-              Manage Users
-            </Link>
-            <Link to="/admin/students" className="dashboard-link">
-              <FaUserGraduate className="inline-block mr-2" />
-              Manage Students
-            </Link>
-            <Link to="/admin/teachers" className="dashboard-link">
-              <FaChalkboardTeacher className="inline-block mr-2" />
-              Manage Teachers
-            </Link>
-            <Link to="/admin/classes" className="dashboard-link">
-              <FaClipboardList className="inline-block mr-2" />
-              Manage Classes
-            </Link>
-            <Link to="/admin/subjects" className="dashboard-link">
-              <FaBookOpen className="inline-block mr-2" />
-              Manage Subjects
-            </Link>
-            <Link to="/admin/terms" className="dashboard-link">
-              <FaCalendarAlt className="inline-block mr-2" />
-              Manage Terms
-            </Link>
-          </div>
-        );
-      case 'teacher':
-        switch (teacherType) {
-          case 'class_teacher':
-            return (
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Link to="/teacher/enter-marks" className="dashboard-link">
-                  <FaClipboardList className="inline-block mr-2" />
-                  Enter Marks
-                </Link>
-                <Link to="/teacher/results/entered-by-me" className="dashboard-link">
-                  <FaListAlt className="inline-block mr-2" />
-                  Results By Me
-                </Link>
-                <Link to="/teacher/class-results" className="dashboard-link">
-                  <FaListAlt className="inline-block mr-2" />
-                  View Class Results
-                </Link>
-                <Link to="/teacher/publish-results" className="dashboard-link">
-                  <FaFileAlt className="inline-block mr-2" />
-                  Publish Results
-                </Link>
-                <Link to="/teacher/report-comments" className="dashboard-link">
-                  <FaBookOpen className="inline-block mr-2" />
-                  Report Card Comments
-                </Link>
-              </div>
-            );
-          case 'subject_teacher':
-            return (
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Link to="/teacher/enter-marks" className="dashboard-link">
-                  <FaClipboardList className="inline-block mr-2" />
-                  Enter Marks
-                </Link>
-                <Link to="/teacher/results/entered-by-me" className="dashboard-link">
-                  <FaListAlt className="inline-block mr-2" />
-                  Results By Me
-                </Link>
-                <Link to="/teacher/subject-results" className="dashboard-link">
-                  <FaListAlt className="inline-block mr-2" />
-                  View Subject Results
-                </Link>
-                <Link to="/teacher/comment" className="dashboard-link">
-                  <FaBookOpen className="inline-block mr-2" />
-                  Add Subject Comments
-                </Link>
-              </div>
-            );
-          case 'principal':
-            return (
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Link to="/principal/overview" className="dashboard-link">
-                  <FaClipboardList className="inline-block mr-2" />
-                  School Overview
-                </Link>
-                <Link to="/principal/results-approval" className="dashboard-link">
-                  <FaFileAlt className="inline-block mr-2" />
-                  Approve Results
-                </Link>
-                <Link to="/principal/communications" className="dashboard-link">
-                  <FaBookOpen className="inline-block mr-2" />
-                  School Communications
-                </Link>
-              </div>
-            );
-          case 'deputy':
-            return (
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Link to="/deputy/overview" className="dashboard-link">
-                  <FaClipboardList className="inline-block mr-2" />
-                  Deputy Overview
-                </Link>
-                <Link to="/deputy/discipline" className="dashboard-link">
-                  <FaFileAlt className="inline-block mr-2" />
-                  Manage Discipline
-                </Link>
-                <Link to="/deputy/communications" className="dashboard-link">
-                  <FaBookOpen className="inline-block mr-2" />
-                  School Communications
-                </Link>
-              </div>
-            );
-          default:
-            return (
-              <div className="mt-6 text-gray-600">No dashboard available for your teacher type.</div>
-            );
-        }
-      case 'student':
-        return (
-          <div className="mt-6">
-            <div className="mb-4 flex flex-col md:flex-row items-center gap-4">
-              <label htmlFor="term-select" className="font-medium flex items-center gap-2">
-                <FaCalendarAlt /> Select Term:
-              </label>
-              <select
-                id="term-select"
-                className="border px-3 py-2 rounded"
-                value={termId}
-                onChange={e => setTermId(e.target.value)}
-              >
-                <option value="">-- Select Term --</option>
-                {terms.map(term => (
-                  <option key={term._id} value={term._id}>
-                    {term.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {termId ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Link to={`/student/report/${termId}/Opener`} className="dashboard-link">
-                  📘 Opener Exam Report
-                </Link>
-                <Link to={`/student/report/${termId}/Midterm`} className="dashboard-link">
-                  📗 Midterm Exam Report
-                </Link>
-                <Link to={`/student/report/${termId}/Endterm`} className="dashboard-link">
-                  📙 Endterm Exam Report
-                </Link>
-                <Link to={`/student/final-report/${termId}`} className="dashboard-link">
-  📝 Final Report Card (30/30/70)
-</Link>
-
-                <Link to="/student/class-schedule" className="dashboard-link">
-                  <FaClipboardList className="inline-block mr-2" />
-                  Class Schedule
-                </Link>
-              </div>
-            ) : (
-              <p className="text-red-600">Please select a term to view exam reports.</p>
-            )}
-          </div>
-        );
-      case 'parent':
-        return (
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Link to="/parent/children-results" className="dashboard-link">
-              <FaListAlt className="inline-block mr-2" />
-              Children Results
-            </Link>
-            <Link to="/parent/communications" className="dashboard-link">
-              <FaBookOpen className="inline-block mr-2" />
-              School Communications
-            </Link>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Helper to render role description
-  const renderRoleSpecificContent = (role, teacherType) => {
-    switch (role) {
-      case 'admin':
-        return (
-          <p className="text-gray-700 mt-2">
-            <FaLaptopHouse className="inline-block mr-2" />
-            As an Admin, you have full control over the system.
-          </p>
-        );
-      case 'teacher':
-        switch (teacherType) {
-          case 'class_teacher':
-            return (
-              <p className="text-gray-700 mt-2">
-                <FaChalkboardTeacher className="inline-block mr-2" />
-                Manage your class, marks, and report comments.
-              </p>
-            );
-          case 'subject_teacher':
-            return (
-              <p className="text-gray-700 mt-2">
-                <FaChalkboardTeacher className="inline-block mr-2" />
-                Manage your subjects and student marks.
-              </p>
-            );
-          case 'principal':
-            return (
-              <p className="text-gray-700 mt-2">
-                <FaChalkboardTeacher className="inline-block mr-2" />
-                Oversee school performance and approve results.
-              </p>
-            );
-          case 'deputy':
-            return (
-              <p className="text-gray-700 mt-2">
-                <FaChalkboardTeacher className="inline-block mr-2" />
-                Assist in school management and discipline.
-              </p>
-            );
-          default:
-            return null;
-        }
-      case 'student':
-        return (
-          <div className="mt-4 space-y-4">
-            <div className="text-gray-700 flex items-center gap-2">
-              <FaUserGraduate />
-              <span>View your results, report cards, and class schedule:</span>
-            </div>
-          </div>
-        );
-      case 'parent':
-        return (
-          <p className="text-gray-700 mt-2">
-            <FaUsers className="inline-block mr-2" />
-            Monitor your child's progress and school communications.
-          </p>
-        );
-      default:
-        return null;
-    }
-  };
 
   const handleLogout = async () => {
     await logout();
   };
 
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl text-center">
-        <h2 className="text-3xl font-bold text-blue-600 mb-6 flex items-center justify-center gap-2">
-          <FaUserCircle className="text-4xl" /> Welcome to your Dashboard!
-        </h2>
-        {user ? (
-          <>
-            <p className="text-lg text-gray-800 mb-2">
-              Hello, <span className="font-semibold">{user.firstName} {user.lastName}</span>
-              <span className="text-blue-500"> ({user.roleMapping || user.role})</span>
-            </p>
-            <p className="text-gray-600 mb-4">Email: {user.email}</p>
-            {renderRoleSpecificContent(user.role, user.teacherType)}
-            {renderRoleActions(user.role, user.teacherType)}
-            <button
-              onClick={handleLogout}
-              className="mt-6 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200 flex items-center justify-center mx-auto"
+  const renderAdminDashboard = () => {
+    const adminLinks = [
+      { to: '/admin/create-user', label: 'Create User', icon: <FaUserPlus /> },
+      { to: '/admin/users', label: 'Manage Users', icon: <FaUsers /> },
+      { to: '/admin/students', label: 'Manage Students', icon: <FaUserGraduate /> },
+      { to: '/admin/teachers', label: 'Manage Teachers', icon: <FaChalkboardTeacher /> },
+      { to: '/admin/classes', label: 'Manage Classes', icon: <FaBookOpen /> },
+      { to: '/admin/subjects', label: 'Manage Subjects', icon: <FaBookOpen /> },
+      { to: '/admin/assign-class-subject', label: 'Assign Class Subjects', icon: <FaClipboardList /> },
+      { to: '/admin/terms', label: 'Manage Terms', icon: <FaCalendarAlt /> }
+    ];
+
+    return <DashboardSection title="Admin Panel" links={adminLinks} />;
+  };
+
+  const renderTeacherDashboard = () => {
+    let teacherLinks = [];
+    let title = '';
+
+    switch (user.teacherType) {
+      case 'class_teacher':
+        title = 'Class Teacher Panel';
+        teacherLinks = [
+          { to: '/teacher/enter-marks', label: 'Enter Marks', icon: <FaClipboardList /> },
+          { to: '/teacher/results/entered-by-me', label: 'Results By Me', icon: <FaListAlt /> },
+          { to: '/teacher/class-results', label: 'Class Results', icon: <FaFileAlt /> },
+          { to: '/teacher/publish-results', label: 'Publish Results', icon: <FaFileAlt /> },
+          { to: '/teacher/report-comments', label: 'Report Comments', icon: <FaBookOpen /> }
+        ];
+        break;
+      case 'subject_teacher':
+        title = 'Subject Teacher Panel';
+        teacherLinks = [
+          { to: '/teacher/enter-marks', label: 'Enter Marks', icon: <FaClipboardList /> },
+          { to: '/teacher/results/entered-by-me', label: 'Results By Me', icon: <FaListAlt /> },
+          { to: '/teacher/subject-results', label: 'Subject Results', icon: <FaFileAlt /> },
+          { to: '/teacher/comment', label: 'Add Subject Comments', icon: <FaBookOpen /> }
+        ];
+        break;
+      case 'principal':
+        title = 'Principal Panel';
+        teacherLinks = [
+          { to: '/principal/overview', label: 'Overview', icon: <FaClipboardList /> },
+          { to: '/principal/results-approval', label: 'Approve Results', icon: <FaFileAlt /> },
+          { to: '/principal/communications', label: 'School Communication', icon: <FaBookOpen /> }
+        ];
+        break;
+      case 'deputy':
+        title = 'Deputy Panel';
+        teacherLinks = [
+          { to: '/deputy/overview', label: 'Deputy Overview', icon: <FaClipboardList /> },
+          { to: '/deputy/discipline', label: 'Manage Discipline', icon: <FaFileAlt /> },
+          { to: '/deputy/communications', label: 'School Communication', icon: <FaBookOpen /> }
+        ];
+        break;
+      default:
+        return <p className="text-gray-600 mt-4">Your teacher type is not supported yet.</p>;
+    }
+
+    return <DashboardSection title={title} links={teacherLinks} />;
+  };
+
+  const renderStudentDashboard = () => {
+    if (!termId) {
+      return (
+        <div className="bg-white border border-blue-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
+            <FaUserGraduate /> Student Panel
+          </h3>
+          <div className="mb-4">
+            <label className="block font-semibold text-sm text-gray-700 mb-1">
+              <FaCalendarAlt className="inline-block mr-2" />
+              Select Term
+            </label>
+            <select 
+              value={termId} 
+              onChange={e => setTermId(e.target.value)} 
+              className="w-full border rounded px-3 py-2"
             >
-              <FaSignOutAlt className="mr-2" /> Logout
-            </button>
-          </>
-        ) : (
-          <p className="text-gray-700">Loading user data...</p>
+              <option value="">-- Select Term --</option>
+              {terms.map(term => (
+                <option key={term._id} value={term._id}>{term.name}</option>
+              ))}
+            </select>
+          </div>
+          <p className="text-gray-600 text-sm">Please select a term to view your options.</p>
+        </div>
+      );
+    }
+
+    const studentLinks = [
+      { to: `/student/report/${termId}/Opener`, label: 'Opener Report', icon: <FaBookOpen /> },
+      { to: `/student/report/${termId}/Midterm`, label: 'Midterm Report', icon: <FaBookOpen /> },
+      { to: `/student/report/${termId}/Endterm`, label: 'Endterm Report', icon: <FaBookOpen /> },
+      { to: `/student/final-report/${termId}`, label: 'Final Report Card', icon: <FaFileAlt /> },
+      { to: '/student/class-schedule', label: 'Class Schedule', icon: <FaClipboardList /> }
+    ];
+
+    return (
+      <div className="space-y-4">
+        <div className="bg-white border border-blue-200 rounded-lg p-4">
+          <label className="block font-semibold text-sm text-gray-700 mb-1">
+            <FaCalendarAlt className="inline-block mr-2" />
+            Select Term
+          </label>
+          <select 
+            value={termId} 
+            onChange={e => setTermId(e.target.value)} 
+            className="w-full border rounded px-3 py-2"
+          >
+            <option value="">-- Select Term --</option>
+            {terms.map(term => (
+              <option key={term._id} value={term._id}>{term.name}</option>
+            ))}
+          </select>
+        </div>
+        <DashboardSection title="Student Panel" links={studentLinks} />
+      </div>
+    );
+  };
+
+  const renderParentDashboard = () => {
+    const parentLinks = [
+      { to: '/parent/children-results', label: 'Children Results', icon: <FaListAlt /> },
+      { to: '/parent/communications', label: 'School Communications', icon: <FaBookOpen /> }
+    ];
+
+    return <DashboardSection title="Parent Panel" links={parentLinks} />;
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 px-4 py-8">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Welcome Section */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h2 className="text-3xl font-bold text-blue-600 mb-4 flex items-center gap-2 justify-center">
+            <FaUserCircle /> Welcome to Your Dashboard
+          </h2>
+          {user ? (
+            <p className="text-gray-700 text-center">
+              Hello <strong>{user.firstName} {user.lastName}</strong> — <span className="text-blue-500">{user.roleMapping || user.role}</span>
+            </p>
+          ) : (
+            <p className="text-center text-gray-600">Loading user info...</p>
+          )}
+        </div>
+
+        {/* Dashboard Panel */}
+        {user && (
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            {user.role === 'admin' && renderAdminDashboard()}
+            {user.role === 'teacher' && renderTeacherDashboard()}
+            {user.role === 'student' && renderStudentDashboard()}
+            {user.role === 'parent' && renderParentDashboard()}
+          </div>
+        )}
+
+        {/* Logout Section */}
+        {user && (
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="text-center">
+              <button 
+                onClick={handleLogout} 
+                className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 mx-auto transition-colors"
+              >
+                <FaSignOutAlt /> Logout
+              </button>
+            </div>
+          </div>
         )}
       </div>
-      <style>{`
-  .dashboard-link {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f3f4f6;
-    color: #2563eb;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    font-weight: 500;
-    text-decoration: none;
-    transition: background 0.2s, color 0.2s;
-  }
-  .dashboard-link:hover {
-    background: #2563eb;
-    color: #fff;
-  }
-`}</style>
     </div>
   );
 };
