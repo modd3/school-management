@@ -1,72 +1,86 @@
-// middleware/authMiddleware.js
+// server/middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
-const asyncHandler = require('express-async-handler'); // For handling async errors without try/catch in every middleware
-const User = require('../models/User'); // Assuming your User model is here
-const mongoose = require('mongoose'); // For model population
+const asyncHandler = require('express-async-handler');
+const User = require('../models/User'); // Assuming your User model path
+const Teacher = require('../models/Teacher'); // Ensure these are correctly imported if used for population
+const Student = require('../models/Student');
+const Parent = require('../models/Parent');
+const Class = require('../models/Class'); // Added Class model for student currentClass population
 
-// Protect routes: Verifies JWT token and attaches user to request
-const protect = asyncHandler(async (req, res, next) => {
-    let token;
+// Protect routes
+exports.protect = asyncHandler(async (req, res, next) => {
+  let token;
 
-    // Check for token in headers (Bearer Token)
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-        try {
-            // Get token from header
-            token = req.headers.authorization.split(' ')[1];
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    // Set token from Bearer token in header
+    token = req.headers.authorization.split(' ')[1];
+  }
+  // else if (req.cookies.token) {
+  //   // Set token from cookie (if you're using cookie-parser for JWT in cookies)
+  //   token = req.cookies.token;
+  // }
 
-            // Verify token
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  // Make sure token exists
+  if (!token) {
+    res.status(401);
+    throw new Error('Not authorized to access this route, no token provided');
+  }
 
-            // Fetch user from DB using decoded ID and attach to request
-            // We want to populate the profile data based on the roleMapping
-            req.user = await User.findById(decoded.id).select('-password'); // Exclude password from req.user
-            if (!req.user) {
-                return res.status(401).json({ message: 'Not authorized, user not found' });
-            }
+  try {
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-            // Populate the specific profile (Teacher, Student, Parent, etc.)
-            // based on the role and profileId stored in the User model
-            const profileModelName = req.user.roleMapping;
-            if (req.user.role !== 'admin') {
-                if (profileModelName && req.user.profileId) {
-                    req.user.profile = await mongoose.model(profileModelName).findById(req.user.profileId);
-                    if (!req.user.profile) {
-                        return res.status(401).json({ message: 'Not authorized, user profile not found' });
-                    }
-                } else {
-                    return res.status(401).json({ message: 'Not authorized, user role mapping missing' });
-                }
-            }
+    // Fetch the user by ID from the token payload
+    let user = await User.findById(decoded.id).select('-password').lean(); // Use .lean() for plain JS objects
 
-            next(); // Proceed to the next middleware/route handler
-        } catch (error) {
-            console.error(error);
-            return res.status(401).json({ message: 'Not authorized, token failed' });
-        }
+    if (!user) {
+      res.status(401);
+      throw new Error('Not authorized, user not found');
     }
 
-    if (!token) {
-        return res.status(401).json({ message: 'Not authorized, no token' });
+    // Populate profile based on the user's main 'role'
+    // Ensure 'profileId' is correctly referenced in your User model
+    if (user.role === 'teacher') {
+      user.profile = await Teacher.findById(user.profileId).select('firstName lastName staffId teacherType phoneNumber subjectsTaught').lean();
+      // If subjectsTaught needs further population, do it here
+    } else if (user.role === 'student') {
+      user.profile = await Student.findById(user.profileId).select('firstName lastName admissionNumber dateOfBirth gender currentClass stream parentContacts studentPhotoUrl').lean();
+      // Further populate currentClass and parentContacts within the student profile
+      if (user.profile && user.profile.currentClass) {
+        user.profile.currentClass = await Class.findById(user.profile.currentClass).select('name stream').lean();
+      }
+      if (user.profile && user.profile.parentContacts && user.profile.parentContacts.length > 0) {
+        // Assuming parentContacts in Student model stores Parent _ids
+        user.profile.parentContacts = await Parent.find({ _id: { $in: user.profile.parentContacts } }).select('firstName lastName phoneNumber').lean();
+      }
+    } else if (user.role === 'parent') {
+      user.profile = await Parent.findById(user.profileId).select('firstName lastName phoneNumber').lean();
     }
+    // For 'admin', no specific profile model needed unless you have an AdminProfile model
+
+    req.user = user; // Attach the user object (with populated profile) to the request
+
+    next();
+  } catch (error) {
+    console.error('Token verification failed:', error);
+    res.status(401);
+    throw new Error('Not authorized, token failed');
+  }
 });
 
-// Authorize roles: Checks if the user has one of the allowed roles
-const authorize = (roles = []) => {
-    // roles can be a single string or an array of strings
-    if (typeof roles === 'string') {
-        roles = [roles];
+// Grant access to specific roles
+exports.authorize = (...roles) => {
+  // Flatten if accidentally passed an array (e.g., authorize(['admin']) instead of authorize('admin'))
+  const allowedRoles = Array.isArray(roles[0]) ? roles[0].map(r => r.trim()) : roles.map(r => r.trim());
+
+  return (req, res, next) => {
+    const userRole = req.user.role ? req.user.role.trim() : '';
+
+    if (!allowedRoles.includes(userRole)) {
+      res.status(403);
+      throw new Error(`User role ${userRole} is not authorized to access this route`);
     }
 
-    return (req, res, next) => {
-        if (!req.user || !req.user.role) {
-            return res.status(403).json({ message: 'Not authorized, no user role' });
-        }
-
-        if (roles.length > 0 && !roles.includes(req.user.role)) {
-            return res.status(403).json({ message: `Not authorized, role ${req.user.role} is not allowed` });
-        }
-        next();
-    };
+    next();
+  };
 };
-
-module.exports = { protect, authorize };

@@ -1,35 +1,31 @@
+// server/routes/classRoutes.js
 const express = require('express');
 const router = express.Router();
-const { protect, authorize } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware'); // Your auth middleware
+
 const {
-  getStudentsInClass,
+  getAllClasses,
+  getClassById,
   createClass,
   updateClass,
-  assignClassTeacher,
   deleteClass,
-  getAllClasses,
-  getClassById
-} = require('../controllers/classController');
+  assignClassTeacher, // Assuming this is here
+  getStudentsInClass // Assuming this is here
+} = require('../controllers/classController'); // Your class controller
 
-// Get all classes (admin/teacher)
-router.get('/', protect, authorize(['admin', 'teacher']), getAllClasses);
+// Admin-only routes for managing classes
+router.route('/')
+  .get(protect, authorize('admin'), getAllClasses) // Admin can get all classes
+  .post(protect, authorize('admin'), createClass); // Admin can create classes
 
-// Get a single class by ID
-router.get('/:classId', protect, authorize(['admin', 'teacher']), getClassById);
+router.route('/:id')
+  .get(protect, authorize('admin', 'teacher'), getClassById) // Admin and teachers might need to view a single class
+  .put(protect, authorize('admin'), updateClass) // Only admin can update
+  .delete(protect, authorize('admin'), deleteClass); // Only admin can delete
 
-// Get students in a class (admin/teacher)
-router.get('/:classId/students', protect, authorize(['teacher', 'admin']), getStudentsInClass);
+// Specific actions
+router.put('/:classId/assign-teacher', protect, authorize('admin'), assignClassTeacher); // Only admin can assign teacher
+router.get('/:classId/students', protect, authorize('admin', 'teacher'), getStudentsInClass); // Admin and teachers can get students in a class
 
-// Create a class (admin only)
-router.post('/', protect, authorize(['admin']), createClass);
-
-// Update a class (admin only)
-router.put('/:classId', protect, authorize(['admin']), updateClass);
-
-// Assign a class teacher (admin only)
-router.post('/:classId/assign-teacher', protect, authorize(['admin']), assignClassTeacher);
-
-// Delete a class (admin only)
-router.delete('/:classId', protect, authorize(['admin']), deleteClass);
 
 module.exports = router;

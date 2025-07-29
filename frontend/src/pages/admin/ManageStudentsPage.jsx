@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { FaUserGraduate, FaEdit, FaTrashAlt, FaSearch, FaPlusCircle } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import { getStudents, deleteStudent } from '../../api/students'; 
-import { getAllParents } from '../../api/parents'; 
+import { getStudents, deleteStudent } from '../../api/students';
+//import { getAllParents } from '../../api/parents'; // Keep this if parent info is displayed or used
+import { toast } from 'react-toastify'; // Import toast
 
 export default function ManageStudentsPage() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [parentOptions, setParentOptions] = useState([]);
+  // const [parentOptions, setParentOptions] = useState([]); // Not directly used in display, can be removed if not needed
   const navigate = useNavigate();
 
   // Function to load students from the API
@@ -17,11 +18,12 @@ export default function ManageStudentsPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getStudents(); 
-      setStudents(data.students || []); 
+      const data = await getStudents();
+      setStudents(data.students || []);
     } catch (err) {
       console.error("Failed to load students:", err);
       setError(err.message || 'Failed to load students.');
+      toast.error(err.message || 'Failed to load students.'); // Use toast
     } finally {
       setLoading(false);
     }
@@ -32,45 +34,46 @@ export default function ManageStudentsPage() {
     loadStudents();
   }, []);
 
-  // Fetch all parents for selection
-  useEffect(() => {
-    async function fetchParents() {
-      try {
-        const res = await getAllParents();
-        setParentOptions(res.parents || []);
-      } catch (err) {
-        // Optionally handle error
-      }
-    }
-    fetchParents();
-  }, []);
+  // Fetch all parents for selection (only if needed for display or filtering, otherwise can be removed)
+  // useEffect(() => {
+  //   async function fetchParents() {
+  //     try {
+  //       const res = await getAllParents();
+  //       setParentOptions(res.parents || []);
+  //     } catch (err) {
+  //       // Optionally handle error
+  //     }
+  //   }
+  //   fetchParents();
+  // }, []);
 
   const handleDeleteStudent = async (studentId) => {
-    if (window.confirm('Are you sure you want to delete this student?')) {
-      try {
-        await deleteStudent(studentId); 
-        setStudents(students.filter(student => student._id !== studentId));
-      } catch (err) {
-        console.error("Failed to delete student:", err);
-        setError(err.message || 'Failed to delete student.');
-      }
+    if (!window.confirm('Are you sure you want to delete this student?')) return; // Consider custom modal
+    try {
+      await deleteStudent(studentId);
+      setStudents(students.filter(student => student._id !== studentId));
+      toast.success('Student deleted successfully!'); // Use toast
+    } catch (err) {
+      console.error("Failed to delete student:", err);
+      setError(err.message || 'Failed to delete student.');
+      toast.error(err.message || 'Failed to delete student.'); // Use toast
     }
   };
 
   const handleEditStudent = (studentId) => {
-    navigate(`/admin/students/edit/${studentId}`); 
+    navigate(`/admin/students/edit/${studentId}`); // Correctly navigates to the edit page
   };
 
   const handleAddStudent = () => {
-    navigate('/admin/create-user');
+    navigate('/admin/create-user'); // Navigates to the create user page
   };
 
   const filteredStudents = students.filter(student =>
     (student.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
     (student.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
     (student.email?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
-    (student.studentId?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
-    (student.currentClass?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') // Assuming 'class' is an object with a 'name' property
+    (student.admissionNumber?.toLowerCase().includes(searchTerm.toLowerCase()) || '') || // Changed from studentId to admissionNumber
+    (student.currentClass?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') // Assuming 'currentClass' is an object with a 'name' property
   );
 
   if (loading) {
@@ -125,7 +128,7 @@ export default function ManageStudentsPage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission Number</th> {/* Changed from Student ID */}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>

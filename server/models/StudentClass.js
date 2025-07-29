@@ -15,10 +15,6 @@ const studentClassSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  rollNumber: {
-    type: String,
-    required: true,
-  },
   enrollmentDate: {
     type: Date,
     default: Date.now,

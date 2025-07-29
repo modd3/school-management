@@ -3,22 +3,28 @@ const User = require('../models/User');
 const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
 const Parent = require('../models/Parent');
-const asyncHandler = require('express-async-handler'); // For handling async errors
-const ms = require('ms'); // For handling time in milliseconds
-const crypto = require('crypto'); // For generating secure tokens
-const sendEmail = require('../utils/email'); // For sending emails
+const StudentClass = require('../models/StudentClass'); // Import StudentClass model
+const ClassSubject = require('../models/ClassSubject'); // Import ClassSubject model for elective validation
+
+const asyncHandler = require('express-async-handler');
+const ms = require('ms');
+const crypto = require('crypto');
+const sendEmail = require('../utils/email');
+const assignCoreSubjects = require('../utils/assignCoreSubjects'); // Import the utility for core subjects
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 // Helper function to send token in cookie
 const sendTokenResponse = (user, statusCode, res) => {
-    const token = user.getSignedJwtToken();
+    const token = generateToken(user._id, user.role); // Use the generateToken helper
 
     const options = {
-        expires: new Date(Date.now() + ms(process.env.JWT_EXPIRE)), // Convert days to milliseconds
-        httpOnly: true // Prevent client-side JS from accessing token
+        expires: new Date(Date.now() + ms(process.env.JWT_EXPIRE)),
+        httpOnly: true
     };
 
     if (process.env.NODE_ENV === 'production') {
-        options.secure = true; // Send cookie only on HTTPS
+        options.secure = true;
     }
 
     res.status(statusCode)
@@ -31,68 +37,174 @@ const sendTokenResponse = (user, statusCode, res) => {
                 email: user.email,
                 role: user.role,
                 profileId: user.profileId,
-                profile: user.profile // This will be populated by protect middleware on subsequent requests
+                profile: user.profile // This should be populated by protect middleware on subsequent requests or explicitly returned
             }
         });
+};
+
+// Generate JWT (moved outside for reusability)
+const generateToken = (id, role) => {
+  return jwt.sign({ id, role }, process.env.JWT_SECRET, {
+    expiresIn: '30d',
+  });
 };
 
 
 // @desc    Register a new user (Admin-only initially)
 // @route   POST /api/auth/register
-// @access  Private (Admin)
+// @access  Private (Admin) - assuming this is for admin to create users
 exports.register = asyncHandler(async (req, res) => {
     const { email, password, role, profileData } = req.body;
 
-    // Get firstName and lastName from profileData if not at top level
-    const firstName = req.body.firstName || (profileData && profileData.firstName);
-    const lastName = req.body.lastName || (profileData && profileData.lastName);
+    // Get firstName and lastName from profileData
+    const { firstName, lastName } = profileData;
 
     // Basic validation
     if (!email || !password || !role || !profileData || !firstName || !lastName) {
         return res.status(400).json({ message: 'Please enter all required fields: firstName, lastName, email, password, role, and profileData.' });
     }
 
-    // Determine which profile model to create based on the role
-    let profileModel;
-    let profileMapping;
+    // Determine roleMapping based on the provided role
+    let roleMappingValue;
     switch (role) {
         case 'admin':
-            // For admin, profileData might be minimal or a dedicated Admin profile
-            profileModel = null; // Admins might not need a separate profile doc in the same way
-            profileMapping = 'User'; // Or create an 'Admin' model if needed
+            roleMappingValue = 'Admin'; // Or 'User' if Admin is not a separate profile model
             break;
         case 'teacher':
-            profileModel = Teacher;
-            profileMapping = 'Teacher';
+            roleMappingValue = 'Teacher';
             break;
         case 'parent':
-            profileModel = Parent;
-            profileMapping = 'Parent';
+            roleMappingValue = 'Parent';
             break;
         case 'student':
-            profileModel = Student;
-            profileMapping = 'Student';
+            roleMappingValue = 'Student';
             break;
         default:
-            return res.status(400).json({ message: 'Invalid role specified.' });
+            res.status(400);
+            throw new Error('Invalid role specified.');
     }
 
-    // Create the User first
-    const user = await User.create({ firstName, lastName, email, password, role, roleMapping: profileMapping });
-
-    // Create the associated profile document
-    if (profileModel) {
-        // Associate the new user's ID with the profile
-        const profile = await profileModel.create({ ...profileData, userId: user._id });
-        user.profileId = profile._id; // Link the profile's ID to the User
-        await user.save(); // Save user again to update profileId
+    // Check if user already exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+        res.status(400);
+        throw new Error('User already exists');
     }
-    // For admin, profileId will just be the user's own ID or handled differently
 
-    // For initial Admin creation, you might remove `protect` and `authorize` and handle it manually or via a setup script.
-    // For subsequent users, ensure the admin token is used.
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    sendTokenResponse(user, 201, res);
+    // Create User
+    const newUser = await User.create({
+        email,
+        password: hashedPassword,
+        role,
+        firstName,
+        lastName,
+        roleMapping: roleMappingValue,
+    });
+
+    if (newUser) {
+        let profile;
+        let studentClassEntry; // To hold the StudentClass document
+
+        if (role === 'student') {
+            const {
+                dateOfBirth, gender, studentPhotoUrl,
+                parentContactIds, classId, academicYear, electiveClassSubjectIds
+            } = profileData;
+
+            // 1. Create Student Profile
+            profile = await Student.create({
+                userId: newUser._id,
+                firstName,
+                lastName,
+                dateOfBirth,
+                gender,
+                studentPhotoUrl,
+                parentContacts: parentContactIds, // Use parentContactIds from frontend
+                currentClass: classId, // Link student to their current class
+                academicYear: academicYear, // Store academic year on student for current context
+                admissionNumber: `ADM-${Date.now()}`, // Auto-generate a simple admission number
+                stream: null, // Stream will be determined by the class (or set from profileData if available)
+            });
+
+            // 2. Create StudentClass Entry
+            if (classId && academicYear) {
+                studentClassEntry = await StudentClass.create({
+                    student: profile._id, // Link to the Student profile
+                    class: classId,
+                    academicYear,
+                    // Removed rollNumber as per user request to avoid duplicate key error
+                    enrollmentDate: new Date(),
+                    status: 'Active',
+                    subjects: [], // Initialize as empty, will be populated
+                });
+
+                // 3. Assign Core Subjects
+                await assignCoreSubjects(profile._id, classId, academicYear);
+
+                // Re-fetch studentClassEntry to get updated subjects array after core assignment
+                studentClassEntry = await StudentClass.findById(studentClassEntry._id);
+
+                // 4. Assign Elective Subjects (if provided)
+                if (electiveClassSubjectIds && electiveClassSubjectIds.length > 0) {
+                    const validElectives = await ClassSubject.find({
+                        _id: { $in: electiveClassSubjectIds },
+                        class: classId,
+                        academicYear: academicYear,
+                        'subject.category': 'Elective',
+                        isActive: true
+                    }).populate('subject');
+
+                    const validElectiveIds = validElectives.map(cs => cs._id);
+
+                    studentClassEntry.subjects = [...new Set([...studentClassEntry.subjects.map(String), ...validElectiveIds.map(String)])];
+                    await studentClassEntry.save();
+                }
+
+            } else {
+                res.status(400);
+                throw new Error('Class and Academic Year are required for student creation.');
+            }
+
+        } else if (role === 'teacher') {
+            const { staffId, teacherType, phoneNumber } = profileData;
+            profile = await Teacher.create({
+                userId: newUser._id,
+                firstName,
+                lastName,
+                staffId,
+                teacherType,
+                phoneNumber,
+            });
+        } else if (role === 'parent') {
+            const { phoneNumber } = profileData;
+            profile = await Parent.create({
+                userId: newUser._id,
+                firstName,
+                lastName,
+                phoneNumber,
+            });
+        } else if (role === 'admin') {
+            profile = { _id: newUser._id, firstName: firstName, lastName: lastName };
+        } else {
+            res.status(400);
+            throw new Error('Invalid role specified');
+        }
+
+        newUser.profileId = profile._id;
+        await newUser.save();
+
+        newUser.profile = profile;
+
+        sendTokenResponse(newUser, 201, res);
+
+    } else {
+        res.status(400);
+        throw new Error('Invalid user data');
+    }
 });
 
 
@@ -102,19 +214,16 @@ exports.register = asyncHandler(async (req, res) => {
 exports.login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
-    // Validate email & password
     if (!email || !password) {
         return res.status(400).json({ message: 'Please provide an email and password' });
     }
 
-    // Check for user
-    const user = await User.findOne({ email }).select('+password'); // Select password explicitly
+    const user = await User.findOne({ email }).select('+password');
 
     if (!user) {
         return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Check if password matches
     const isMatch = await user.matchPassword(password);
 
     if (!isMatch) {
@@ -126,18 +235,11 @@ exports.login = asyncHandler(async (req, res) => {
 
 // @desc    Log user out / Clear cookie
 // @route   GET /api/auth/logout
-// @access  Private (though usually just a redirect for logged in users)
+// @access  Private
 exports.logoutUser = asyncHandler(async (req, res, next) => {
-    // Clear the JWT cookie
     res.cookie('token', 'none', {
-        expires: new Date(Date.now() + 10 * 1000), // Expire in 10 seconds (effectively immediate)
+        expires: new Date(Date.now() + 10 * 1000),
         httpOnly: true,
-        // If your frontend and backend are on different domains (e.g., localhost:3000 and localhost:5000),
-        // you might need to specify sameSite: 'none' and secure: true for production.
-        // For local development with different ports, this can be tricky.
-        // If you face issues, ensure sameSite is correctly set based on your setup.
-        // sameSite: 'strict', // Or 'lax', or 'none' (with secure: true)
-        // secure: process.env.NODE_ENV === 'production', // Use secure cookies in production (HTTPS)
     });
 
     res.status(200).json({ success: true, message: 'Logged out successfully' });
@@ -147,22 +249,17 @@ exports.logoutUser = asyncHandler(async (req, res, next) => {
 // @route   GET /api/auth/me
 // @access  Private
 exports.getMe = asyncHandler(async (req, res) => {
-    // Find the user by ID
     const user = await User.findById(req.user._id).lean();
     if (!user) {
         return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // If the user is a teacher, fetch the teacher profile and merge teacherType
     if (user.role === 'teacher' && user.profileId) {
         const teacherProfile = await Teacher.findById(user.profileId).lean();
         if (teacherProfile) {
             user.teacherType = teacherProfile.teacherType;
-            // Optionally, merge other teacher fields if needed
         }
     }
-
-    // You can do similar for student/parent if you want extra fields
 
     res.status(200).json({
         success: true,
@@ -182,11 +279,9 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
         return res.status(404).json({ message: 'There is no user with that email address' });
     }
 
-    // Get reset token
     const resetToken = user.getResetPasswordToken();
     await user.save({ validateBeforeSave: false });
 
-    // Create reset URL pointing to your frontend form
     const resetURL = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     const message = `
@@ -201,7 +296,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
         await sendEmail({
             email: user.email,
             subject: 'Your Password Reset Request (valid for 10 minutes)',
-            html: message // Send as HTML
+            html: message
         });
 
         res.status(200).json({ success: true, message: 'Password reset email sent successfully. Please check your inbox.' });
@@ -219,7 +314,6 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
 // @route   PATCH /api/auth/resetpassword/:resettoken
 // @access  Public
 exports.resetPassword = asyncHandler(async (req, res, next) => {
-    // Get hashed token
     const resetToken = crypto.createHash('sha256').update(req.params.resettoken).digest('hex');
 
     const user = await User.findOne({
@@ -235,44 +329,10 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
         return res.status(400).json({ message: 'Passwords do not match.' });
     }
 
-    // Set new password
     user.password = req.body.password;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
-    await user.save(); // This will trigger the password hashing middleware
+    await user.save();
 
-    // After successfully resetting, you can either:
-    // 1. Automatically log them in (generate and send new JWT via cookie)
-    // 2. Just send a success message and let the frontend redirect them to the login page.
-    // For simplicity and security, it's often better to just send a success message
-    // and let the frontend handle the redirect to the login page for a fresh login.
-
-    // Option 2 (Recommended for a clearer flow):
     res.status(200).json({ success: true, message: 'Password reset successfully. You can now log in with your new password.' });
-
-    // If you want to automatically log them in (Option 1 - remove the above res.status line):
-    /*
-    const token = user.getSignedJwtToken();
-    const cookieOptions = {
-        expires: new Date(Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
-        httpOnly: true,
-    };
-    if (process.env.NODE_ENV === 'production') {
-        cookieOptions.secure = true;
-    }
-    res
-        .status(200)
-        .cookie('token', token, cookieOptions)
-        .json({
-            success: true,
-            token,
-            user: {
-                _id: user._id,
-                email: user.email,
-                role: user.role,
-                // ... other user details you want to send ...
-            },
-            message: 'Password reset successfully and logged in.'
-        });
-    */
 });

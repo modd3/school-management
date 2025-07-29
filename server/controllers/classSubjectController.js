@@ -1,196 +1,235 @@
 // server/controllers/classSubjectController.js
 
+// Ensure these modules are installed: npm install express-async-handler
+const asyncHandler = require('express-async-handler');
+
+// Ensure these models exist and their paths are correct
 const ClassSubject = require('../models/ClassSubject');
 const StudentClass = require('../models/StudentClass');
+const User = require('../models/User'); // Needed for population or direct user interaction
+const Class = require('../models/Class'); // Needed for population
+const Subject = require('../models/Subject'); // Needed for population
+const Term = require('../models/Term'); // Needed for population
+
 
 // @desc    Assign a subject to a teacher in a class
-// @route   POST /api/admin/class-subjects
+// @route   POST /api/class-subjects/
 // @access  Admin
-exports.assignSubjectToTeacher = async (req, res) => {
-  try {
-    const { classId, subjectId, teacherId, academicYear, term } = req.body;
+exports.assignSubjectToTeacher = asyncHandler(async (req, res) => {
+  const { classId, subjectId, teacherId, academicYear, term } = req.body;
 
-    const exists = await ClassSubject.findOne({
-      class: classId,
-      subject: subjectId,
-      teacher: teacherId,
-      academicYear,
-      term,
-    });
+  const exists = await ClassSubject.findOne({
+    class: classId,
+    subject: subjectId,
+    teacher: teacherId,
+    academicYear,
+    term,
+  });
 
-    if (exists) {
-      return res.status(400).json({ message: 'Assignment already exists.' });
-    }
-
-    const assignment = await ClassSubject.create({
-      class: classId,
-      subject: subjectId,
-      teacher: teacherId,
-      academicYear,
-      term,
-    });
-
-    res.status(201).json({ success: true, classSubject: assignment });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  if (exists) {
+    res.status(400);
+    throw new Error('Assignment already exists.');
   }
-};
+
+  const assignment = await ClassSubject.create({
+    class: classId,
+    subject: subjectId,
+    teacher: teacherId,
+    academicYear,
+    term,
+  });
+
+  res.status(201).json({ success: true, classSubject: assignment });
+});
 
 // @desc    Update a class-subject assignment
-// @route   PUT /api/admin/class-subjects/:id
+// @route   PUT /api/class-subjects/:id
 // @access  Admin
-exports.updateAssignment = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { classId, subjectId, teacherId, academicYear, term } = req.body;
+exports.updateAssignment = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { classId, subjectId, teacherId, academicYear, term } = req.body;
 
-    const current = await ClassSubject.findById(id);
-    if (!current) return res.status(404).json({ message: 'Assignment not found.' });
-
-    const duplicate = await ClassSubject.findOne({
-      _id: { $ne: id },
-      class: classId,
-      subject: subjectId,
-      teacher: teacherId,
-      academicYear,
-      term,
-    });
-
-    if (duplicate) {
-      return res.status(400).json({ message: 'Duplicate assignment exists.' });
-    }
-
-    current.class = classId || current.class;
-    current.subject = subjectId || current.subject;
-    current.teacher = teacherId || current.teacher;
-    current.academicYear = academicYear || current.academicYear;
-    current.term = term || current.term;
-
-    await current.save();
-
-    res.status(200).json({ success: true, classSubject: current });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  const current = await ClassSubject.findById(id);
+  if (!current) {
+    res.status(404);
+    throw new Error('Assignment not found.');
   }
-};
+
+  const duplicate = await ClassSubject.findOne({
+    _id: { $ne: id },
+    class: classId,
+    subject: subjectId,
+    teacher: teacherId,
+    academicYear,
+    term,
+  });
+
+  if (duplicate) {
+    res.status(400);
+    throw new Error('Duplicate assignment exists.');
+  }
+
+  current.class = classId || current.class;
+  current.subject = subjectId || current.subject;
+  current.teacher = teacherId || current.teacher;
+  current.academicYear = academicYear || current.academicYear;
+  current.term = term || current.term;
+
+  await current.save();
+
+  res.status(200).json({ success: true, classSubject: current });
+});
 
 // @desc    Delete a class-subject assignment
-// @route   DELETE /api/admin/class-subjects/:id
+// @route   DELETE /api/class-subjects/:id
 // @access  Admin
-exports.deleteAssignment = async (req, res) => {
-  try {
-    const { id } = req.params;
+exports.deleteAssignment = asyncHandler(async (req, res) => {
+  const { id } = req.params;
 
-    const deleted = await ClassSubject.findByIdAndDelete(id);
-    if (!deleted) return res.status(404).json({ message: 'Assignment not found.' });
-
-    res.status(200).json({ success: true, message: 'Assignment deleted.' });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  const deleted = await ClassSubject.findByIdAndDelete(id);
+  if (!deleted) {
+    res.status(404);
+    throw new Error('Assignment not found.');
   }
-};
 
-// @desc    Get all assignments for a teacher
-// @route   GET /api/admin/class-subjects/teacher/:teacherId
-// @access  Admin/Teacher
-exports.getSubjectsByTeacher = async (req, res) => {
-  try {
-    const { teacherId } = req.params;
-    const { academicYear, term } = req.query;
+  res.status(200).json({ success: true, message: 'Assignment deleted.' });
+});
 
-    const filter = {
-      teacher: teacherId,
-      ...(academicYear && { academicYear }),
-      ...(term && { term }),
-    };
-
-    const results = await ClassSubject.find(filter)
-      .populate('class')
-      .populate('subject');
-
-    res.status(200).json({ success: true, count: results.length, classSubjects: results });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+// @desc    Get all ClassSubjects assigned to the logged-in teacher
+// @route   GET /api/class-subjects/me
+// @access  Private (Teachers only)
+exports.getMyClassSubjects = asyncHandler(async (req, res) => {
+  // Check if the user is authenticated and has the 'teacher' role
+  if (req.user.role !== 'teacher') { // Assuming 'teacher' role now covers both class_teacher and subject_teacher
+    res.status(403);
+    throw new Error('Not authorized to access teacher subjects. Only teacher role is allowed.');
   }
-};
+
+  const { academicYear, term } = req.query; // Allow filtering by year and term
+
+  const filter = {
+    teacher: req.user._id, // CRUCIAL: Filter by the logged-in user's ID
+    ...(academicYear && { academicYear }),
+    ...(term && { term }),
+  };
+
+  const classSubjects = await ClassSubject.find(filter)
+    .populate('class', 'name') // Populate 'name' field from Class model
+    .populate('subject', 'name code category group') // <-- ADDED 'category' and 'group' here
+    .populate('term', 'name') // Populate 'name' from Term model (assuming you have a Term model)
+    .lean(); // Use .lean() for faster queries if you don't need Mongoose documents
+
+  if (!classSubjects || classSubjects.length === 0) {
+    // Return 200 with empty array if no subjects found, not 404
+    return res.status(200).json({ success: true, count: 0, classSubjects: [], message: 'No class subjects found for this teacher.' });
+  }
+
+  res.status(200).json({
+    success: true,
+    count: classSubjects.length,
+    classSubjects,
+  });
+});
+
+// @desc    Get all assignments for a teacher (Admin can use this to see any teacher's subjects)
+// @route   GET /api/class-subjects/teacher/:teacherId
+// @access  Admin
+exports.getSubjectsByTeacher = asyncHandler(async (req, res) => {
+  const { teacherId } = req.params;
+  const { academicYear, term } = req.query;
+
+  const filter = {
+    teacher: teacherId,
+    ...(academicYear && { academicYear }),
+    ...(term && { term }),
+  };
+
+  const results = await ClassSubject.find(filter)
+    .populate('class', 'name')
+    .populate('subject', 'name code category group') // <-- ADDED 'category' and 'group' here
+    .populate('term', 'name')
+    .lean();
+
+  res.status(200).json({ success: true, count: results.length, classSubjects: results });
+});
 
 // @desc    Get all assignments for a class
-// @route   GET /api/admin/class-subjects/class/:classId
+// @route   GET /api/class-subjects/class/:classId
 // @access  Admin/Teacher
-exports.getSubjectsByClass = async (req, res) => {
-  try {
-    const { classId } = req.params;
-    const { academicYear, term } = req.query;
+exports.getSubjectsByClass = asyncHandler(async (req, res) => {
+  const { classId } = req.params;
+  const { academicYear, term } = req.query;
 
-    const filter = {
-      class: classId,
-      ...(academicYear && { academicYear }),
-      ...(term && { term }),
-    };
+  const filter = {
+    class: classId,
+    ...(academicYear && { academicYear }),
+    ...(term && { term }),
+  };
 
-    const results = await ClassSubject.find(filter)
-      .populate('subject')
-      .populate('teacher');
+  const results = await ClassSubject.find(filter)
+    .populate('subject', 'name code category group') // <-- ADDED 'category' and 'group' here
+    .populate('teacher', 'firstName lastName email')
+    .populate('term', 'name')
+    .lean();
 
-    res.status(200).json({ success: true, count: results.length, classSubjects: results });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
+  res.status(200).json({ success: true, count: results.length, classSubjects: results });
+});
 
 // @desc    Enroll a student in a subject
-// @route   POST /api/admin/class-subjects/enroll
+// @route   POST /api/class-subjects/enroll
 // @access  Admin/Teacher
-exports.enrollStudentInSubject = async (req, res) => {
-  try {
-    let { studentId, classSubjectId, academicYear } = req.body;
+exports.enrollStudentInSubject = asyncHandler(async (req, res) => {
+  let { studentId, classSubjectId, academicYear } = req.body;
 
-    if (!academicYear) {
-      const now = new Date();
-      academicYear = now.getFullYear().toString();
-    }
-
-    const mapping = await StudentClass.findOne({
-      student: studentId,
-      academicYear,
-      status: 'Active',
-    });
-
-    if (!mapping) {
-      return res.status(404).json({ message: 'Student not enrolled in this class for the academic year.' });
-    }
-
-    if (mapping.subjects.includes(classSubjectId)) {
-      return res.status(400).json({ message: 'Student already enrolled in this subject.' });
-    }
-
-    mapping.subjects.push(classSubjectId);
-    await mapping.save();
-
-    res.status(200).json({ success: true, message: 'Student enrolled.', studentClass: mapping });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  if (!academicYear) {
+    const now = new Date();
+    academicYear = now.getFullYear().toString();
   }
-};
+
+  const mapping = await StudentClass.findOne({
+    student: studentId,
+    academicYear,
+    status: 'Active',
+  });
+
+  if (!mapping) {
+    res.status(404);
+    throw new Error('Student not enrolled in this class for the academic year.');
+  }
+
+  if (mapping.subjects.includes(classSubjectId)) {
+    res.status(400);
+    throw new Error('Student already enrolled in this subject.');
+  }
+
+  mapping.subjects.push(classSubjectId);
+  await mapping.save();
+
+  res.status(200).json({ success: true, message: 'Student enrolled.', studentClass: mapping });
+});
 
 // @desc    Get all students enrolled in a subject
-// @route   GET /api/admin/class-subjects/:classSubjectId/students?academicYear=2025
+// @route   GET /api/class-subjects/:classSubjectId/students?academicYear=2025
 // @access  Admin/Teacher
-exports.getStudentsInSubject = async (req, res) => {
-  try {
-    const { classSubjectId } = req.params;
-    const { academicYear } = req.query;
+exports.getStudentsInSubject = asyncHandler(async (req, res) => {
+  const { classSubjectId } = req.params;
+  const { academicYear } = req.query;
 
-    const mappings = await StudentClass.find({
-      academicYear,
-      status: 'Active',
-      subjects: classSubjectId,
-    }).populate('student');
+  const mappings = await StudentClass.find({
+    academicYear,
+    status: 'Active',
+    subjects: classSubjectId,
+  }).populate('student', 'firstName lastName admissionNumber currentClass stream'); // Populate student details
 
-    const students = mappings.map(m => m.student);
+  // Further populate currentClass and stream within the student object if needed
+  const students = await Promise.all(mappings.map(async (m) => {
+    const student = m.student.toObject(); // Convert to plain object to modify
+    if (student.currentClass) {
+      const cls = await Class.findById(student.currentClass).select('name stream').lean();
+      student.currentClass = cls; // Replace ID with populated object
+    }
+    return student;
+  }));
 
-    res.status(200).json({ success: true, count: students.length, students });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
+  res.status(200).json({ success: true, count: students.length, students });
+});

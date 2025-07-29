@@ -12,8 +12,10 @@ const uploadRoutes = require('./routes/uploadRoutes'); // Import the upload rout
 const studentRoutes = require('./routes/studentRoutes'); 
 const termRoutes = require('./routes/termRoutes'); // Import term routes
 const classRoutes = require('./routes/classRoutes');
+const classSubjectRoutes = require('./routes/classSubjectRoutes'); 
 const cors = require('cors');
 const morgan = require('morgan'); // For logging requests
+const PORT = process.env.PORT || 5000;
 
 dotenv.config();
 connectDB();
@@ -43,6 +45,6 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/student', studentRoutes); 
 app.use('/api/terms', termRoutes); // Mount term routes
 app.use('/api/classes', classRoutes); // Mount class routes
+app.use('/api/class-subjects', classSubjectRoutes); 
 
-const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

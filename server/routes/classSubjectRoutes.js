@@ -1,35 +1,59 @@
-const { 
-  enrollStudentInSubject, 
-  assignSubjectToTeacher, 
-  updateAssignment, 
-  deleteAssignment, 
-  getSubjectsByTeacher, 
-  getSubjectsByClass, 
-  getStudentsInSubject 
+// server/routes/classSubjectRoutes.js
+const express = require('express');
+const router = express.Router(); // Use express.Router() instead of express()
+const { protect, authorize } = require('../middleware/authMiddleware'); // Your auth middleware
+
+const {
+  assignSubjectToTeacher,
+  updateAssignment,
+  deleteAssignment,
+  getSubjectsByTeacher, // Used by Admin to get ANY teacher's subjects
+  getMyClassSubjects,   // NEW: Used by a logged-in Teacher to get THEIR OWN subjects
+  getSubjectsByClass,
+  enrollStudentInSubject,
+  getStudentsInSubject
 } = require('../controllers/classSubjectController');
-const { protect, authorize } = require('../middleware/authMiddleware');
 
-const router = require('express').Router();
 
-// Get all subjects assigned to a teacher
-router.get('/teacher/:teacherId', protect, authorize(['admin', 'teacher']), getSubjectsByTeacher);
-
-// Get all subjects assigned in a class
-router.get('/class/:classId', protect, authorize(['admin', 'teacher']), getSubjectsByClass);
-
-// Get all students enrolled in a subject
-router.get('/students/:subjectId', protect, authorize(['admin', 'teacher']), getStudentsInSubject);
+// --- ADMIN ROUTES (Highly restricted for management operations) ---
 
 // Assign a subject to a teacher in a class
-router.post('/assign', protect, authorize(['admin', 'teacher']), assignSubjectToTeacher);
+// Route: POST /api/class-subjects/
+router.post('/', protect, authorize('admin'), assignSubjectToTeacher);
 
-// Enroll a student in a subject
-router.post('/enroll', protect, authorize(['admin', 'teacher']), enrollStudentInSubject);
-
-// Update a class-subject assignment
-router.put('/assign/:id', protect, authorize(['admin', 'teacher']), updateAssignment);
+// Update an existing class-subject assignment
+// Route: PUT /api/class-subjects/:id
+router.put('/:id', protect, authorize('admin'), updateAssignment);
 
 // Delete a class-subject assignment
-router.delete('/assign/:id', protect, authorize(['admin', 'teacher']), deleteAssignment);
+// Route: DELETE /api/class-subjects/:id
+router.delete('/:id', protect, authorize('admin'), deleteAssignment);
+
+// Get all subjects assigned to ANY teacher (by teacherId) - Admin-only view
+// Route: GET /api/class-subjects/teacher/:teacherId
+router.get('/teacher/:teacherId', protect, authorize('admin'), getSubjectsByTeacher);
+
+
+// --- TEACHER & ADMIN ROUTES (Data teachers need to perform their duties) ---
+
+// Get all subjects assigned in a specific class (both admin and teachers might need this)
+// Route: GET /api/class-subjects/class/:classId
+router.get('/class/:classId', protect, authorize('admin', 'teacher'), getSubjectsByClass);
+
+// Enroll a student in a subject (both admin and teachers might perform this)
+// Route: POST /api/class-subjects/enroll
+router.post('/enroll', protect, authorize('admin', 'teacher'), enrollStudentInSubject);
+
+// Get all students enrolled in a specific class-subject assignment
+// Route: GET /api/class-subjects/:classSubjectId/students
+router.get('/:classSubjectId/students', protect, authorize('admin', 'teacher'), getStudentsInSubject);
+
+
+// --- TEACHER-SPECIFIC ROUTE (for logged-in teacher to see their own data) ---
+
+// Get all subjects assigned to the logged-in teacher (using req.user._id from protect middleware)
+// Route: GET /api/class-subjects/me
+router.get('/me', protect, authorize('teacher'), getMyClassSubjects);
+
 
 module.exports = router;
