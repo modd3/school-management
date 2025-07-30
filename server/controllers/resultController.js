@@ -13,18 +13,26 @@ const {getStudentResultsByExamType} = require('../utils/examResults');
 exports.enterMarks = async (req, res) => {
     const { studentId, classSubjectId, termId, examType, marksObtained, outOf, comment } = req.body;
 
+    console.log('Received data:', { studentId, classSubjectId, termId, examType, marksObtained, outOf, comment });
+
     if (!studentId || !classSubjectId || !termId || !examType || marksObtained === undefined || outOf === undefined) {
-        return res.status(400).json({ message: 'Missing required fields: studentId, subjectId, termId, examType, marksObtained, outOf' });
+        return res.status(400).json({ message: 'Missing required fields: studentId, classSubjectId, termId, examType, marksObtained, outOf' });
     }
 
     try {
         const percentage = (marksObtained / outOf) * 100;
-        const { grade, points } = calculateGradeAndPoints(percentage)
+        const { grade, points } = calculateGradeAndPoints(percentage);
 
-        // Check if a result already exists for this student, subject, term, and exam type
-        let result = await Result.findOne({ student: studentId, subject: classSubjectId, term: termId, examType });
+        // Check if a result already exists for this student, classSubject, term, and exam type
+        let result = await Result.findOne({ 
+            student: studentId, 
+            classSubject: classSubjectId,  // Fixed: use classSubject instead of subject
+            term: termId, 
+            examType 
+        });
 
         if (result) {
+            // Update existing result
             result.marksObtained = marksObtained;
             result.outOf = outOf;
             result.percentage = percentage;     
@@ -32,29 +40,33 @@ exports.enterMarks = async (req, res) => {
             result.points = points;
             result.comment = comment || result.comment;
             await result.save();
+            
             res.status(200).json({ message: 'Marks updated successfully', result });
+            
+            // Update student's results array (if you're maintaining this)
             await Student.findByIdAndUpdate(studentId, {
-                $pull: { results: { subject: classSubjectId, term: termId, examType } } // Remove duplicate
-                });
-                await Student.findByIdAndUpdate(studentId, {
+                $pull: { results: { classSubject: classSubjectId, term: termId, examType } } // Remove duplicate
+            });
+            await Student.findByIdAndUpdate(studentId, {
                 $push: {
                     results: {
-                    subject: classSubjectId,
-                    term: termId,
-                    examType,
-                    marksObtained,
-                    outOf,
-                    percentage,
-                    grade,
-                    points
+                        classSubject: classSubjectId,  // Fixed: use classSubject
+                        term: termId,
+                        examType,
+                        marksObtained,
+                        outOf,
+                        percentage,
+                        grade,
+                        points
                     }
                 }
-                });
+            });
 
         } else {
+            // Create new result
             result = await Result.create({
                 student: studentId,
-                subject: classSubjectId,
+                classSubject: classSubjectId,  // Fixed: use classSubject instead of subject
                 term: termId,
                 examType,
                 marksObtained,
@@ -65,6 +77,7 @@ exports.enterMarks = async (req, res) => {
                 comment,
                 enteredBy: req.user.profileId // assuming req.user.profileId is the teacher's ID
             });
+            
             res.status(201).json({ message: 'Marks entered successfully', result });
         }
     } catch (error) {

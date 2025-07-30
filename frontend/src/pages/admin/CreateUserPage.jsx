@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { registerUser } from '../../api/auth';
 import { getClasses } from '../../api/classes';
 import { getAllParents } from '../../api/parents';
-import { getClassSubjectsByClass } from '../../api/classSubjects';
+import { getClassSubjectsByClass, enrollStudentInSubject } from '../../api/classSubjects'; // Import enrollStudentInSubject
 import { FaUserPlus } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
@@ -69,7 +69,7 @@ const CreateUserPage = () => {
       try {
         console.log('Loading subjects for class:', formData.classId, 'academic year:', formData.academicYear);
         const res = await getClassSubjectsByClass(formData.classId, formData.academicYear);
-        console.log('API Response:', res);
+        console.log('API Response for getClassSubjectsByClass:', res);
         setClassSubjects(res.classSubjects || []);
         // Reset electives when class changes
         setFormData(prev => ({ ...prev, selectedElectives: {} }));
@@ -144,13 +144,25 @@ const CreateUserPage = () => {
       Object.assign(profileData, { staffId, teacherType, phoneNumber });
     }
 
+    // Student-specific logic for enrollment
+    let studentEnrollmentClassSubjectIds = [];
     if (role === 'student') {
       if (!classId || !academicYear) {
         toast.error('Please select a class and academic year for the student');
         return;
       }
 
+      // Collect selected elective class subject IDs
       const electiveClassSubjectIds = Object.values(selectedElectives).filter(Boolean);
+      studentEnrollmentClassSubjectIds = [...electiveClassSubjectIds];
+
+      // Automatically add core subjects to enrollment list
+      const coreClassSubjectIds = classSubjects
+        .filter(cs => cs.subject && cs.subject.category && cs.subject.category.toLowerCase() === 'core')
+        .map(cs => cs._id);
+      
+      studentEnrollmentClassSubjectIds = [...new Set([...studentEnrollmentClassSubjectIds, ...coreClassSubjectIds])];
+
 
       Object.assign(profileData, {
         dateOfBirth,
@@ -159,7 +171,9 @@ const CreateUserPage = () => {
         parentContactIds: parentId ? [parentId] : [],
         classId,
         academicYear,
-        electiveClassSubjectIds,
+        // We are no longer directly saving electiveClassSubjectIds to the student profile
+        // as enrollment will be handled by the separate API call.
+        // The backend `registerUser` might still expect `classId` and `academicYear` for initial student profile setup.
       });
     }
 
@@ -169,10 +183,33 @@ const CreateUserPage = () => {
 
     setLoading(true);
     try {
-      await registerUser({ email, password, role, profileData });
+      const userRes = await registerUser({ email, password, role, profileData });
       toast.success('✅ User created successfully!');
+
+      // If the created user is a student, proceed with subject enrollment
+      if (role === 'student' && userRes.user && userRes.user.profileId) {
+        const studentId = userRes.user.profileId; // Assuming profileId is the student's ID
+
+        // Enroll student in all collected class subjects
+        for (const classSubjectId of studentEnrollmentClassSubjectIds) {
+          try {
+            console.log(`Attempting to enroll student ${studentId} in class subject ${classSubjectId} for academic year ${academicYear}`);
+            await enrollStudentInSubject({
+              studentId,
+              classSubjectId,
+              academicYear,
+            });
+            toast.success(`Enrolled in subject: ${classSubjects.find(cs => cs._id === classSubjectId)?.subject?.name}`);
+          } catch (enrollErr) {
+            console.error(`Failed to enroll student ${studentId} in class subject ${classSubjectId}:`, enrollErr);
+            toast.error(`Failed to enroll in a subject: ${classSubjects.find(cs => cs._id === classSubjectId)?.subject?.name || 'Unknown'}.`);
+          }
+        }
+      }
+
       setTimeout(() => navigate('/admin/users'), 1500);
     } catch (err) {
+      console.error('Error creating user:', err);
       toast.error(err?.response?.data?.message || '❌ Failed to create user.');
     } finally {
       setLoading(false);

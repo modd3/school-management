@@ -7,8 +7,13 @@ import { getStudentsInClass } from '../../api/classes'; // expects backend endpo
 import { toast } from 'react-toastify';
 import Spinner from '../../components/Spinner'; // Assuming you have a Spinner component
 import { getTerms } from '../../api/terms'; // Import getTerms API call
+import { useAuth } from '../../context/AuthContext'; // Import useAuth hook
 
-export default function EnterMarksPage({ user }) {
+export default function EnterMarksPage() {
+  // Get user from AuthContext directly
+  const { user } = useAuth();
+
+  // Initial state declarations
   const [academicYear, setAcademicYear] = useState(new Date().getFullYear().toString());
   const [term, setTerm] = useState('');
   const [classSubjects, setClassSubjects] = useState([]);
@@ -16,132 +21,141 @@ export default function EnterMarksPage({ user }) {
   const [students, setStudents] = useState([]);
   const [marks, setMarks] = useState({});
   const [examType, setExamType] = useState('');
-  const [loading, setLoading] = useState(false); // Added loading state
-  const [error, setError] = useState(null); // Added error state
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const [terms, setTerms] = useState([]); // State to store fetched terms
 
-  // Effect 1: Load terms from the backend
+  // --- DEBUG LOGS FOR INITIAL RENDER AND PROP CHANGES ---
+  console.log('--- EnterMarksPage Component Render ---');
+  console.log('Current User from useAuth:', user);
+  console.log('Current Academic Year State:', academicYear);
+  console.log('Current Term State:', term);
+  console.log('Current Selected Class Subject State:', selectedClassSubject);
+  console.log('Current Class Subjects Array Length:', classSubjects.length);
+  console.log('Current Students Array Length:', students.length);
+  console.log('Current Loading State:', loading);
+  console.log('Current Error State:', error);
+  // ---------------------------------------------------
+
+  // Effect 1: Load terms from the backend and then class subjects
   useEffect(() => {
-    async function loadTerms() {
+    async function initializeData() {
+      console.log('[EFFECT 1 - InitializeData] triggered.');
       setLoading(true);
       setError(null);
+
       try {
-        const res = await getTerms();
-        setTerms(res.terms || []);
-        // Pre-select the first term if available and no term is already selected
-        if (res.terms && res.terms.length > 0 && !term) {
-          setTerm(res.terms[0]._id);
+        // Step 1: Load Terms
+        console.log('[EFFECT 1] Attempting to load terms.');
+        const termsRes = await getTerms();
+        console.log('[EFFECT 1] Raw response from getTerms:', termsRes);
+        setTerms(termsRes.terms || []);
+
+        let currentTermId = term;
+        if (termsRes.terms && termsRes.terms.length > 0 && !term) {
+          currentTermId = termsRes.terms[0]._id;
+          setTerm(currentTermId);
+          console.log('[EFFECT 1] Pre-selected term ID:', currentTermId, 'Name:', termsRes.terms[0].name);
+        } else if (term) {
+          console.log('[EFFECT 1] Term already set:', term);
+        } else {
+          console.log('[EFFECT 1] No terms fetched or no term to pre-select.');
         }
+
+        // Step 2: Load Class Subjects (only if user and term are available)
+        // This part now runs immediately after terms are handled in the same effect
+        if (user?._id && currentTermId && academicYear) {
+          console.log(`[EFFECT 1] Attempting to fetch class subjects for teacher: ${user._id}, term: ${currentTermId}, academicYear: ${academicYear}`);
+          const classSubjectsRes = await getClassSubjectsByTeacher(user._id, currentTermId, academicYear);
+          console.log('[EFFECT 1] Raw response from getClassSubjectsByTeacher:', classSubjectsRes);
+          const fetchedClassSubjects = classSubjectsRes.classSubjects || [];
+          console.log('[EFFECT 1] Processed fetchedClassSubjects (array):', fetchedClassSubjects);
+          setClassSubjects(fetchedClassSubjects);
+
+          if (fetchedClassSubjects.length > 0) {
+            if (!fetchedClassSubjects.some(cs => cs._id === selectedClassSubject)) {
+              setSelectedClassSubject(fetchedClassSubjects[0]._id);
+              console.log('[EFFECT 1] Pre-selected first class subject:', fetchedClassSubjects[0]._id);
+            } else {
+              console.log('[EFFECT 1] Selected class subject is still valid or already set.');
+            }
+          } else {
+            setSelectedClassSubject(''); // Clear if no subjects found
+            console.log('[EFFECT 1] No class subjects found, clearing selection.');
+          }
+        } else {
+          console.log('[EFFECT 1] Skipping class subjects fetch: User, term, or academicYear not ready.');
+          setClassSubjects([]);
+          setSelectedClassSubject('');
+        }
+
       } catch (err) {
-        console.error('[EnterMarksPage] Failed to load terms:', err);
-        toast.error(err.message || 'Failed to load terms');
-        setError(err.message || 'Failed to load terms');
+        console.error('[EFFECT 1] Initialization failed:', err);
+        toast.error(err.message || 'Failed to initialize data (terms or class subjects)');
+        setError(err.message || 'Failed to initialize data');
       } finally {
         setLoading(false);
       }
     }
-    loadTerms();
-  }, []); // Run once on component mount
 
-  // Effect 2: Load class subjects assigned to the logged-in teacher
-  useEffect(() => {
-    async function loadClassSubjects() {
-      // Ensure user, term, and academicYear are available before fetching
-      if (!user || !user._id || !term || !academicYear) {
-        setClassSubjects([]);
-        setSelectedClassSubject(''); // Clear selection if prerequisites not met
-        return;
-      }
+    // Only run this comprehensive initialization effect when user is available or term/academicYear changes
+    // This ensures it runs when user logs in, or if the year/term is manually changed.
+    initializeData();
+  }, [user?._id, academicYear, term]); // Dependencies: user ID, academic year, and term (for re-trigger on manual change)
 
-      setLoading(true);
-      setError(null);
-      try {
-        // Ensure getClassSubjectsByTeacher is configured to use req.user._id on backend
-        // and populates 'class', 'subject', and 'term'
-        const res = await getClassSubjectsByTeacher(term, academicYear);
-        const fetchedClassSubjects = res.classSubjects || [];
-        setClassSubjects(fetchedClassSubjects);
-
-        // If there are fetched class subjects, attempt to pre-select the first one
-        // ONLY if selectedClassSubject is currently empty or no longer valid
-        if (fetchedClassSubjects.length > 0 && !fetchedClassSubjects.some(cs => cs._id === selectedClassSubject)) {
-          setSelectedClassSubject(fetchedClassSubjects[0]._id);
-        } else if (fetchedClassSubjects.length === 0) {
-          setSelectedClassSubject(''); // Clear if no subjects found
-        }
-      } catch (err) {
-        console.error('[EnterMarksPage] Failed to load assigned class-subjects:', err);
-        toast.error(err.message || 'Failed to load assigned class-subjects');
-        setError(err.message || 'Failed to load assigned class-subjects');
-      } finally {
-        setLoading(false);
-      }
-    };
-    // Only call loadClassSubjects if term and academicYear are set
-    if (term && academicYear) {
-      loadClassSubjects();
-    }
-  }, [term, academicYear, user?._id]); // Depend on user?._id for safety
-
-  // Effect 3: Load students in the selected class subject
+  // Effect 2: Load students when selectedClassSubject changes
   useEffect(() => {
     async function loadStudents() {
-      // Only proceed if selectedClassSubject has a value and classSubjects is not empty
-      if (!selectedClassSubject || classSubjects.length === 0 || !academicYear) {
-        setStudents([]);
-        setMarks({});
-        return;
-      }
+      console.log('[EFFECT 2 - LoadStudents] triggered.');
+      console.log('  Dependencies: selectedClassSubject=', selectedClassSubject, 'academicYear=', academicYear);
 
-      // Find the selected class subject object
-      const selected = classSubjects.find(cs => cs._id === selectedClassSubject);
-
-      // IMPORTANT: Robust checks for 'selected' and its nested 'class' property
-      if (!selected || !selected.class || !selected.class._id) {
+      // Only proceed if we have a selected class subject and academic year
+      if (!selectedClassSubject || !academicYear) {
+        console.log('[EFFECT 2] Skipping loadStudents: Prerequisites not met.');
         setStudents([]);
-        setMarks({});
-        // Only show a warning if a subject was actually selected but data is bad
-        if (selectedClassSubject && !loading && !error) {
-            toast.warn('Selected subject has incomplete class information. Please check data setup or select another subject.');
-        }
         return;
       }
 
       setLoading(true);
       setError(null);
       try {
-        // Call the API to get students in the selected class
-        const res = await getStudentsInClass(selected.class._id, academicYear);
-        setStudents(res.students || []);
+        console.log(`[EFFECT 2] Attempting to fetch students for classSubject: ${selectedClassSubject}, academicYear: ${academicYear}`);
+        
+        // Use the class-subjects API to get students enrolled in this specific subject
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('No authentication token found. Please log in.');
+        }
 
-        // Initialize marks state for new students
-        const initialMarks = {};
-        (res.students || []).forEach(s => {
-          initialMarks[s._id] = {
-            marksObtained: '',
-            outOf: '',
-            classSubjectId: selectedClassSubject,
-            academicYear,
-            term,
-            examType,
-          };
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/class-subjects/${selectedClassSubject}/students?academicYear=${academicYear}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         });
-        setMarks(initialMarks);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to fetch students');
+        }
+
+        const res = await response.json();
+        console.log('[EFFECT 2] Raw response from getStudentsInSubject:', res);
+        const fetchedStudents = res.students || [];
+        console.log('[EFFECT 2] Processed fetchedStudents (array):', fetchedStudents);
+        setStudents(fetchedStudents);
       } catch (err) {
-        console.error('[EnterMarksPage] Failed to load students:', err);
+        console.error('[EFFECT 2] Failed to load students:', err);
         toast.error(err.message || 'Failed to load students');
         setError(err.message || 'Failed to load students');
       } finally {
         setLoading(false);
       }
-    };
-    // This effect now depends on selectedClassSubject and classSubjects.
-    // It will only run when selectedClassSubject is set and classSubjects has data to find from.
-    if (selectedClassSubject && classSubjects.length > 0 && academicYear) { // Added explicit check here
-        loadStudents();
     }
-  }, [selectedClassSubject, academicYear, classSubjects, examType, term, loading, error]);
+    loadStudents();
+  }, [selectedClassSubject, academicYear]);
 
   const handleChange = (studentId, field, value) => {
     setMarks(prev => ({
@@ -180,32 +194,28 @@ export default function EnterMarksPage({ user }) {
     setLoading(true);
     setError(null);
     try {
-      // Find the full classSubject object to get class and subject IDs
-      const selectedCS = classSubjects.find(cs => cs._id === selectedClassSubject);
+      // Prepare data that matches the backend API expectations
+      const resultData = {
+        studentId: studentId,                  // Required by backend
+        classSubjectId: selectedClassSubject,  // Required by backend (this is the class-subject combination)
+        termId: term,                         // Required by backend
+        examType,                             // Required by backend
+        marksObtained: marksObtained,         // Required by backend
+        outOf: outOf,                         // Required by backend
+        academicYear: academicYear,           // Required by backend Result model
+        comment: data.comment || '',          // Optional comment
+        // enteredBy is set automatically in backend from req.user.profileId
+      };
 
-      // Robust check for selected class subject data
-      if (!selectedCS || !selectedCS.class || !selectedCS.subject) {
-          toast.error('Selected Class & Subject data is incomplete. Cannot save marks.');
-          setLoading(false);
-          return;
-      }
-
-      await submitResult({
-        student: studentId, // Changed from studentId to student as per common backend payload
-        subject: selectedCS.subject._id, // Use populated subject ID
-        class: selectedCS.class._id, // Use populated class ID
-        academicYear,
-        term, // Use term ID from state
-        examType,
-        marksObtained: marksObtained,
-        outOf: outOf,
-        enteredBy: user._id, // Assuming user._id is the teacher's ID
-      });
+      console.log('Submitting result data:', resultData);
+      
+      await submitResult(resultData);
       toast.success('Marks saved successfully!');
+      
       // Clear marks for the saved student to allow new entry or indicate saved state
       setMarks(prev => ({
         ...prev,
-        [studentId]: { ...prev[studentId], marksObtained: '', outOf: '' }
+        [studentId]: { ...prev[studentId], marksObtained: '', outOf: '', comment: '' }
       }));
     } catch (err) {
       console.error('Failed to save marks:', err);
@@ -217,7 +227,7 @@ export default function EnterMarksPage({ user }) {
   };
 
   // Render loading spinner or error message if global loading/error
-  if (loading && (!terms.length || !classSubjects.length || !students.length)) {
+  if (loading && (!terms.length || !classSubjects.length)) {
     return <Spinner message="Loading data..." />;
   }
 
@@ -291,7 +301,6 @@ export default function EnterMarksPage({ user }) {
         </div>
       ) : null}
 
-
       {students.length > 0 && selectedClassSubject && examType && (
         <table className="w-full table-auto border">
           <thead className="bg-gray-100">
@@ -299,6 +308,7 @@ export default function EnterMarksPage({ user }) {
               <th className="p-2 text-left">Student</th>
               <th className="p-2">Marks</th>
               <th className="p-2">Out Of</th>
+              <th className="p-2">Comment</th>
               <th className="p-2">Action</th>
             </tr>
           </thead>
@@ -313,6 +323,7 @@ export default function EnterMarksPage({ user }) {
                     value={marks[s._id]?.marksObtained || ''}
                     onChange={e => handleChange(s._id, 'marksObtained', e.target.value)}
                     className="border px-2 py-1 rounded w-24"
+                    placeholder="0"
                   />
                 </td>
                 <td className="p-2">
@@ -322,14 +333,26 @@ export default function EnterMarksPage({ user }) {
                     value={marks[s._id]?.outOf || ''}
                     onChange={e => handleChange(s._id, 'outOf', e.target.value)}
                     className="border px-2 py-1 rounded w-24"
+                    placeholder="100"
+                  />
+                </td>
+                <td className="p-2">
+                  <input
+                    type="text"
+                    value={marks[s._id]?.comment || ''}
+                    onChange={e => handleChange(s._id, 'comment', e.target.value)}
+                    className="border px-2 py-1 rounded w-32"
+                    placeholder="Optional comment"
+                    maxLength="500"
                   />
                 </td>
                 <td className="p-2">
                   <button
                     onClick={() => handleSave(s._id)}
-                    className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700"
+                    disabled={loading}
+                    className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 disabled:bg-gray-400"
                   >
-                    Save
+                    {loading ? 'Saving...' : 'Save'}
                   </button>
                 </td>
               </tr>
@@ -339,6 +362,4 @@ export default function EnterMarksPage({ user }) {
       )}
     </div>
   );
-};
-
-
+}

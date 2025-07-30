@@ -116,7 +116,7 @@ exports.getMyClassSubjects = asyncHandler(async (req, res) => {
   const classSubjects = await ClassSubject.find(filter)
     .populate('class', 'name') // Populate 'name' field from Class model
     .populate('subject', 'name code category group') // <-- ADDED 'category' and 'group' here
-    .populate('term', 'name') // Populate 'name' from Term model (assuming you have a Term model)
+    .populate('term', 'name') // Populate 'name' from Term model
     .lean(); // Use .lean() for faster queries if you don't need Mongoose documents
 
   if (!classSubjects || classSubjects.length === 0) {

@@ -1,16 +1,6 @@
 // api/results.js
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
-// Helper function to handle API responses
-const handleResponse = async (response) => {
-    const data = await response.json();
-    if (!response.ok) {
-        // If the response is not OK, throw an error with the message from the backend
-        throw new Error(data.message || 'Something went wrong');
-    }
-    return data;
-};
-
 // Fetch results for the logged-in teacher using fetch API
 export const getTeacherResults = async () => {
     try {
@@ -25,7 +15,15 @@ export const getTeacherResults = async () => {
                 'Content-Type': 'application/json',
             },
         });
-        return handleResponse(response);
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.log('[fetchTeacherResults] Error data:', errorData);
+            throw errorData;
+        }
+
+        const data = await response.json();
+    return data;
     } catch (error) {
         throw error;
     }
@@ -45,51 +43,119 @@ export const getStudentResults = async (termId, examType) => {
                 'Content-Type': 'application/json',
             },
         });
-        return handleResponse(response);
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw errorData;
+        }
+
+        return await response.json();
     } catch (error) {
         throw error;
     }
-};
+}
 
-// Update the function signature
-export const getClassSubjectsByTeacher = async (term, academicYear) => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        throw new Error('No authentication token found. Please log in.');
-    }
-    
-    const response = await fetch(`${API_BASE_URL}/class-subjects/me?term=${term}&academicYear=${academicYear}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    return handleResponse(response);
-  } catch (error) {
-    throw error;
+/**
+ * Fetches class subjects assigned to the logged-in teacher for a specific term and academic year.
+ * This function now targets the /api/class-subjects/me endpoint, which infers the teacher ID from the JWT.
+ *
+ * @param {string} teacherId - The ID of the teacher (used for consistency in frontend, but not directly in URL for /me endpoint).
+ * @param {string} termId - The ID of the term.
+ * @param {string} academicYear - The academic year.
+ * @returns {Promise<Object>} The response data containing class subjects.
+ */
+export const getClassSubjectsByTeacher = async (teacherId, termId, academicYear) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found. Please log in.');
   }
+
+  const queryParams = new URLSearchParams();
+  if (termId) {
+    queryParams.append('term', termId);
+  }
+  if (academicYear) {
+    queryParams.append('academicYear', academicYear);
+  }
+
+  const queryString = queryParams.toString();
+  // Construct the URL to hit the /api/class-subjects/me endpoint
+  const url = `${API_BASE_URL}/class-subjects/me${queryString ? '?' + queryString : ''}`;
+
+  // Log the URL right before the fetch call
+  console.log(`[API] getClassSubjectsByTeacher fetching from: ${url}`);
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Failed to fetch class subjects for teacher.');
+  }
+  return data;
 };
 
-// Submit a new result (marks)
-export const submitResult = async (payload) => {
+// In your API file (likely results.js or api/results.js)
+export const submitResult = async (resultData) => {
+  const token = localStorage.getItem('token');
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+  
+  console.log('Submitting result data:', resultData);
+  console.log('API URL:', `${API_BASE_URL}/teacher/results/enter`);
+  
+  if (!token) {
+    throw new Error('No authentication token found. Please log in.');
+  }
+  
   try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        throw new Error('No authentication token found. Please log in.');
-    }
-    const response = await fetch(`${API_BASE_URL}/results`, {
+    const response = await fetch(`${API_BASE_URL}/teacher/results/enter`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(resultData)
     });
-    return handleResponse(response);
+    
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+    
+    // Get response text first to see what we're actually getting
+    const responseText = await response.text();
+    console.log('Raw response:', responseText);
+    
+    if (!response.ok) {
+      // Try to parse as JSON, but handle HTML responses
+      let errorMessage = 'Failed to submit result';
+      try {
+        const errorData = JSON.parse(responseText);
+        errorMessage = errorData.message || errorMessage;
+      } catch (parseError) {
+        console.error('Could not parse error response as JSON:', parseError);
+        errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        
+        // If we got HTML back, it might be a 404 or routing issue
+        if (responseText.includes('<!DOCTYPE')) {
+          errorMessage = `API endpoint not found. Check if ${API_BASE_URL}/teacher/results/enter is correct.`;
+        }
+      }
+      throw new Error(errorMessage);
+    }
+    
+    // Parse successful response
+    try {
+      return JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Could not parse success response as JSON:', parseError);
+      throw new Error('Invalid response format from server');
+    }
+    
   } catch (error) {
+    console.error('Submit result error:', error);
     throw error;
   }
 };
-
-// You might also have other result-related API calls here, e.g., updateResult, deleteResult

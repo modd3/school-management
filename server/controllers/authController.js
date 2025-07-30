@@ -10,7 +10,7 @@ const asyncHandler = require('express-async-handler');
 const ms = require('ms');
 const crypto = require('crypto');
 const sendEmail = require('../utils/email');
-const assignCoreSubjects = require('../utils/assignCoreSubjects'); // Import the utility for core subjects
+// const assignCoreSubjects = require('../utils/assignCoreSubjects'); // Import the utility for core subjects
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -47,6 +47,35 @@ const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, {
     expiresIn: '30d',
   });
+};
+
+// Helper function to assign core subjects (if not already in a separate file)
+const assignCoreSubjects = async (studentId, classId, academicYear) => {
+    // Find all core subjects for the given class and academic year
+    const coreClassSubjects = await ClassSubject.find({
+        class: classId,
+        academicYear: academicYear,
+        'subject.category': 'Core', // Assuming subject is populated or you can query by category
+        isActive: true
+    });
+
+    const coreSubjectIds = coreClassSubjects.map(cs => cs._id.toString());
+
+    // Find the student's StudentClass entry
+    const studentClassEntry = await StudentClass.findOne({
+        student: studentId,
+        class: classId,
+        academicYear: academicYear,
+    });
+
+    if (studentClassEntry) {
+        // Add unique core subjects to the existing subjects array
+        studentClassEntry.subjects = [...new Set([...studentClassEntry.subjects.map(String), ...coreSubjectIds])];
+        await studentClassEntry.save();
+    } else {
+        // This case should ideally not be hit if StudentClass is created right before
+        console.warn(`StudentClass entry not found for student ${studentId} in class ${classId} for ${academicYear}. Core subjects not assigned.`);
+    }
 };
 
 
@@ -112,7 +141,7 @@ exports.register = asyncHandler(async (req, res) => {
         if (role === 'student') {
             const {
                 dateOfBirth, gender, studentPhotoUrl,
-                parentContactIds, classId, academicYear, electiveClassSubjectIds
+                parentContactIds, classId, academicYear, stream // Added stream from profileData
             } = profileData;
 
             // 1. Create Student Profile
@@ -127,16 +156,24 @@ exports.register = asyncHandler(async (req, res) => {
                 currentClass: classId, // Link student to their current class
                 academicYear: academicYear, // Store academic year on student for current context
                 admissionNumber: `ADM-${Date.now()}`, // Auto-generate a simple admission number
-                stream: null, // Stream will be determined by the class (or set from profileData if available)
+                stream: stream || null, // Set stream from profileData or null
             });
 
-            // 2. Create StudentClass Entry
+            // 2. Create StudentClass Entry with auto-generated rollNumber
             if (classId && academicYear) {
+                // Find the highest roll number for this class and academic year
+                const lastStudentClass = await StudentClass.findOne({
+                    class: classId,
+                    academicYear: academicYear
+                }).sort({ rollNumber: -1 }); // Sort descending to get the highest
+
+                const newRollNumber = (lastStudentClass && lastStudentClass.rollNumber) ? lastStudentClass.rollNumber + 1 : 1;
+
                 studentClassEntry = await StudentClass.create({
                     student: profile._id, // Link to the Student profile
                     class: classId,
                     academicYear,
-                    // Removed rollNumber as per user request to avoid duplicate key error
+                    rollNumber: newRollNumber, // Assign the generated unique roll number
                     enrollmentDate: new Date(),
                     status: 'Active',
                     subjects: [], // Initialize as empty, will be populated
@@ -146,19 +183,20 @@ exports.register = asyncHandler(async (req, res) => {
                 await assignCoreSubjects(profile._id, classId, academicYear);
 
                 // Re-fetch studentClassEntry to get updated subjects array after core assignment
+                // This is important because assignCoreSubjects modifies it directly.
                 studentClassEntry = await StudentClass.findById(studentClassEntry._id);
 
                 // 4. Assign Elective Subjects (if provided)
-                if (electiveClassSubjectIds && electiveClassSubjectIds.length > 0) {
+                if (profileData.electiveClassSubjectIds && profileData.electiveClassSubjectIds.length > 0) {
                     const validElectives = await ClassSubject.find({
-                        _id: { $in: electiveClassSubjectIds },
+                        _id: { $in: profileData.electiveClassSubjectIds },
                         class: classId,
                         academicYear: academicYear,
                         'subject.category': 'Elective',
                         isActive: true
                     }).populate('subject');
 
-                    const validElectiveIds = validElectives.map(cs => cs._id);
+                    const validElectiveIds = validElectives.map(cs => cs._id.toString());
 
                     studentClassEntry.subjects = [...new Set([...studentClassEntry.subjects.map(String), ...validElectiveIds.map(String)])];
                     await studentClassEntry.save();
