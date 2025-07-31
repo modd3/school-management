@@ -16,7 +16,7 @@ const getAuthHeaders = () => {
 
 // ✅ Assign subject to teacher for a specific class/term/year
 export const assignClassSubject = async (payload) => {
-  const response = await fetch(`${API_BASE_URL}/class-subjects`, { // Updated route to match new router
+  const response = await fetch(`${API_BASE_URL}/class-subjects`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
@@ -27,7 +27,7 @@ export const assignClassSubject = async (payload) => {
 
 // ✅ Update an existing class-subject assignment
 export const updateClassSubject = async (id, updates) => {
-  const response = await fetch(`${API_BASE_URL}/class-subjects/${id}`, { // Updated route to match new router
+  const response = await fetch(`${API_BASE_URL}/class-subjects/${id}`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify(updates),
@@ -38,7 +38,7 @@ export const updateClassSubject = async (id, updates) => {
 
 // ✅ Delete a class-subject assignment
 export const deleteClassSubject = async (id) => {
-  const response = await fetch(`${API_BASE_URL}/class-subjects/${id}`, { // Updated route to match new router
+  const response = await fetch(`${API_BASE_URL}/class-subjects/${id}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
     credentials: 'include',
@@ -47,7 +47,6 @@ export const deleteClassSubject = async (id) => {
 };
 
 // ✅ Get all subject-teacher assignments for a specific class
-// Now correctly passes term and academicYear as query parameters
 export const getClassSubjectsByClass = async (classId, academicYear, term) => {
   const queryParams = new URLSearchParams();
   if (academicYear) {
@@ -68,7 +67,6 @@ export const getClassSubjectsByClass = async (classId, academicYear, term) => {
 };
 
 // ✅ Get all subject assignments for a specific teacher (Admin view)
-// This endpoint is for admins to query any teacher's subjects by ID.
 export const getClassSubjectsByTeacher = async (teacherId, academicYear, term) => {
   const queryParams = new URLSearchParams();
   if (academicYear) {
@@ -88,19 +86,22 @@ export const getClassSubjectsByTeacher = async (teacherId, academicYear, term) =
   return handleResponse(response);
 };
 
-// ✅ FIXED: Get all class-subject assignments for the logged-in teacher (Teacher's own view)
-// This endpoint uses '/me' and relies on the backend's 'protect' middleware to identify the teacher.
-export const getMyClassSubjects = async (term, academicYear) => {
+// ✅ Get all class-subject assignments for the logged-in teacher (Teacher's own view)
+// Modified to accept individual parameters and build query string internally.
+export const getMyClassSubjects = async (termId, academicYear) => { // Now explicitly expects termId, academicYear
   const queryParams = new URLSearchParams();
-  if (term) {
-    queryParams.append('term', term);
+  if (termId) {
+    queryParams.append('term', termId);
   }
   if (academicYear) {
     queryParams.append('academicYear', academicYear);
   }
   const queryString = queryParams.toString();
   const url = `${API_BASE_URL}/class-subjects/me${queryString ? `?${queryString}` : ''}`;
-  
+
+  // Log the URL right before the fetch call
+  console.log(`[API] getMyClassSubjects fetching from: ${url}`);
+
   const response = await fetch(url, {
     method: 'GET',
     headers: getAuthHeaders(),
@@ -110,7 +111,6 @@ export const getMyClassSubjects = async (term, academicYear) => {
 };
 
 // ✅ Get all students enrolled in a specific class-subject assignment
-// Updated to match the new route: /api/class-subjects/:classSubjectId/students
 export const getStudentsInSubject = async (classSubjectId, academicYear) => {
   const queryParams = new URLSearchParams();
   if (academicYear) {
@@ -129,7 +129,7 @@ export const getStudentsInSubject = async (classSubjectId, academicYear) => {
 
 // ✅ Enroll a student in a subject
 export const enrollStudentInSubject = async (payload) => {
-  const response = await fetch(`${API_BASE_URL}/class-subjects/enroll`, { // Updated route
+  const response = await fetch(`${API_BASE_URL}/class-subjects/enroll`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),

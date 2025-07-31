@@ -11,9 +11,9 @@ const {getStudentResultsByExamType} = require('../utils/examResults');
 // @route   POST /api/teacher/results/enter
 // @access  Private (Teacher, Class Teacher, Subject Teacher)
 exports.enterMarks = async (req, res) => {
-    const { studentId, classSubjectId, termId, examType, marksObtained, outOf, comment } = req.body;
+    const { studentId, classSubjectId, termId, academicYear, examType, marksObtained, outOf, comment} = req.body;
 
-    console.log('Received data:', { studentId, classSubjectId, termId, examType, marksObtained, outOf, comment });
+    console.log('Received data:', { studentId, classSubjectId, termId, academicYear, examType, marksObtained, outOf, comment, academicYear });
 
     if (!studentId || !classSubjectId || !termId || !examType || marksObtained === undefined || outOf === undefined) {
         return res.status(400).json({ message: 'Missing required fields: studentId, classSubjectId, termId, examType, marksObtained, outOf' });
@@ -57,7 +57,8 @@ exports.enterMarks = async (req, res) => {
                         outOf,
                         percentage,
                         grade,
-                        points
+                        points,
+                        academicYear,
                     }
                 }
             });
@@ -75,6 +76,7 @@ exports.enterMarks = async (req, res) => {
                 grade,
                 points,
                 comment,
+                academicYear,
                 enteredBy: req.user.profileId // assuming req.user.profileId is the teacher's ID
             });
             
@@ -241,7 +243,7 @@ exports.publishTermResults = async (req, res) => {
 }
 
 
-// @desc    Get all results entered by the logged-in teacher
+// @desc    Get all results entered by the logged-in teacher with filtering
 // @route   GET /api/teacher/results/entered-by-me
 // @access  Private (Teacher, Class Teacher, Subject Teacher)
 exports.getResultsByTeacher = asyncHandler(async (req, res) => {
@@ -251,15 +253,72 @@ exports.getResultsByTeacher = asyncHandler(async (req, res) => {
         return res.status(400).json({ success: false, message: 'Teacher profile not found.' });
     }
 
-    const results = await Result.find({ enteredBy: teacherId })
-        .populate('student', 'firstName lastName admissionNumber')
-        .populate('subject', 'name code')
-        .populate('term', 'name year');
+    // Build query filters from request parameters
+    const filter = { enteredBy: teacherId };
+    
+    // Filter by classSubjectId if provided
+    if (req.query.classSubjectId) {
+        filter.classSubject = req.query.classSubjectId;
+    }
+    
+    // Filter by termId if provided
+    if (req.query.termId) {
+        filter.term = req.query.termId;
+    }
+    
+    // Filter by academicYear if provided
+    if (req.query.academicYear) {
+        filter.academicYear = req.query.academicYear;
+    }
+
+    let results = await Result.find(filter)
+        .populate({
+            path: 'student',
+            select: 'firstName lastName admissionNumber'
+        })
+        .populate({
+            path: 'classSubject',
+            populate: [
+                { path: 'class', select: 'name' },
+                { path: 'subject', select: 'name' }
+            ]
+        })
+        .populate('term', 'name')
+        .sort({ createdAt: -1 }); // Sort by most recent first
+
+    // Client-side search filtering if search query is provided
+    if (req.query.search) {
+        const searchTerm = req.query.search.toLowerCase().trim();
+        results = results.filter(result => {
+            const fullName = `${result.student?.firstName || ''} ${result.student?.lastName || ''}`.toLowerCase();
+            const admissionNumber = result.student?.admissionNumber?.toLowerCase() || '';
+            return fullName.includes(searchTerm) || admissionNumber.includes(searchTerm);
+        });
+    }
+
+    // Transform results to include flattened class and subject data
+    const transformedResults = results.map(result => ({
+        _id: result._id,
+        student: result.student,
+        class: result.classSubject?.class,
+        subject: result.classSubject?.subject,
+        term: result.term,
+        examType: result.examType,
+        marksObtained: result.marksObtained,
+        outOf: result.outOf,
+        percentage: result.percentage,
+        grade: result.grade,
+        points: result.points,
+        comment: result.comment,
+        academicYear: result.academicYear,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt
+    }));
 
     res.status(200).json({
         success: true,
-        count: results.length,
-        results
+        count: transformedResults.length,
+        results: transformedResults
     });
 });
 

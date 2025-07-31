@@ -2,13 +2,18 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 // Fetch results for the logged-in teacher using fetch API
-export const getTeacherResults = async () => {
+
+export const getResultsByTeacher = async (queryString = '') => {
     try {
         const token = localStorage.getItem('token');
         if (!token) {
             throw new Error('No authentication token found. Please log in.');
         }
-        const response = await fetch(`${API_BASE_URL}/teacher/results/entered-by-me`, {
+        
+        const url = `${API_BASE_URL}/teacher/results/entered-by-me${queryString ? `?${queryString}` : ''}`;
+        console.log('Fetching teacher results from:', url);
+        
+        const response = await fetch(url, {
             method: 'GET',
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -19,12 +24,13 @@ export const getTeacherResults = async () => {
         if (!response.ok) {
             const errorData = await response.json();
             console.log('[fetchTeacherResults] Error data:', errorData);
-            throw errorData;
+            throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
         }
 
         const data = await response.json();
-    return data;
+        return data;
     } catch (error) {
+        console.error('getTeacherResults error:', error);
         throw error;
     }
 };
@@ -120,7 +126,7 @@ export const submitResult = async (resultData) => {
       },
       body: JSON.stringify(resultData)
     });
-    
+    console.log(resultData);
     console.log('Response status:', response.status);
     console.log('Response ok:', response.ok);
     

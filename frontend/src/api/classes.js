@@ -24,6 +24,16 @@ export const getClasses = async () => {
     return handleResponse(response);
 };
 
+// Fetch teacher's classes
+export const getTeacherClasses = async () => {
+    const response = await fetch(`${API_BASE_URL}/teacher/classes`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+    });
+    return handleResponse(response);
+};
+
 // ✅ Create a new class
 export const createClass = async (classData) => {
     const response = await fetch(`${API_BASE_URL}/admin/classes`, {
