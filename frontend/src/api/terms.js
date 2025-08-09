@@ -65,3 +65,23 @@ export const deleteTerm = async (id) => {
     });
     return handleResponse(response);
 };
+
+
+export const getCurrentTerm = async () => {
+    const response = await fetch(`${API_BASE_URL}/terms/current`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+    });
+    return handleResponse(response);
+};
+
+
+export const getTeacherTerms = async () => {
+    const response = await fetch(`${API_BASE_URL}/teacher/terms`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+    });
+    return handleResponse(response);
+};

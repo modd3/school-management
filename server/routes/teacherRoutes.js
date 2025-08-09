@@ -18,7 +18,8 @@ const { getAllStudents } = require('../controllers/studentController');
 const { getAllSubjects } = require('../controllers/subjectController');
 const { getAllClasses } = require('../controllers/classController');
 const { getAllTerms } = require('../controllers/termController');
-const { getResultsByTeacher } = require('../controllers/resultController');
+const { getResultsByTeacher, getClassExamResults,
+  getClassFinalReports } = require('../controllers/resultController');
 
 // Protect all teacher routes
 router.use(protect);
@@ -29,11 +30,6 @@ router.post('/results/enter', enterMarks);
 
 router.get('/my-subjects', getMySubjects);
 
-// Get marks for entry for a class, subject, term, and exam type
-router.get('/results/for-entry/:classId/:subjectId/:termId/:examType', getMarksForEntry);
-
-// Add or update a teacher comment on a subject result
-router.put('/results/comment/:resultId', addSubjectComment);
 
 // Get all results for a student in a specific term
 router.get('/results/student/:studentId/term/:termId', getStudentResultsForTerm);
@@ -41,22 +37,44 @@ router.get('/results/student/:studentId/term/:termId', getStudentResultsForTerm)
 // Get all results for a class in a specific term
 router.get('/results/class/:classId/term/:termId', getClassResultsForTerm);
 
-// Publish term results for a class
-router.post('/results/publish/:classId/:termId', publishTermResults);
 
 
 // Get all results entered by the logged-in teacher
 router.get('/results/entered-by-me', getResultsByTeacher);
 
-// Update class teacher comment on report card (class_teacher, admin only)
-router.put(
-    '/reportcard/class-comment/:reportCardId',
-    authorize(['class_teacher', 'admin']),
-    updateClassTeacherComment
+router.get('/class-results/:classId/:termId/:examType',
+  getClassExamResults
+);
+
+router.get('/class-final-reports/:classId/:termId', 
+  getClassFinalReports
 );
 
 router.get('/student-report/:studentId/:termId/:examType', getStudentExamReport);
-router.get('/broadsheet/:classId/:termId/:examType', getClassBroadsheetByExamType);
+
+// GET /api/classes/my-class
+router.get('/my-class', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'teacher' || req.user.teacherType !== 'class_teacher') {
+      return res.status(403).json({ message: 'Not authorized as class teacher' });
+    }
+
+    // Find the teacher's assigned class
+    const myClass = await Class.findOne({ classTeacher: req.user.profileId })
+      .populate('classTeacher', 'firstName lastName')
+      .lean();
+
+    if (!myClass) {
+      return res.status(404).json({ message: 'No assigned class found' });
+    }
+
+    res.json({ classes: [myClass] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 
 // Allow both teachers and admins to access
 router.get('/students', authorize(['teacher']),getAllStudents);

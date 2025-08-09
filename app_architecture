@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Management System Architecture</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .architecture-diagram {
+            padding: 40px;
+        }
+
+        .layer {
+            margin-bottom: 40px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .layer:hover {
+            transform: translateY(-5px);
+        }
+
+        .layer-header {
+            padding: 20px;
+            color: white;
+            font-weight: 600;
+            font-size: 1.3em;
+            text-align: center;
+        }
+
+        .presentation-layer .layer-header {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .api-layer .layer-header {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+
+        .business-layer .layer-header {
+            background: linear-gradient(135deg, #27ae60, #229954);
+        }
+
+        .data-layer .layer-header {
+            background: linear-gradient(135deg, #8e44ad, #9b59b6);
+        }
+
+        .external-layer .layer-header {
+            background: linear-gradient(135deg, #34495e, #2c3e50);
+        }
+
+        .layer-content {
+            background: white;
+            padding: 25px;
+        }
+
+        .components {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .component {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #3498db;
+            transition: all 0.3s ease;
+        }
+
+        .component:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .component h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .component ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .component li {
+            padding: 5px 0;
+            color: #5a6c7d;
+            font-size: 0.9em;
+        }
+
+        .component li:before {
+            content: "▪";
+            color: #3498db;
+            margin-right: 8px;
+        }
+
+        .data-flow {
+            background: linear-gradient(135deg, #ecf0f1, #bdc3c7);
+            padding: 25px;
+            border-radius: 15px;
+            margin-top: 30px;
+        }
+
+        .data-flow h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .flow-steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .flow-step {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 25px;
+            color: #2c3e50;
+            font-weight: 500;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            flex: 1;
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .arrow {
+            color: #3498db;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .tech-stack {
+            background: linear-gradient(135deg, #16a085, #1abc9c);
+            padding: 25px;
+            border-radius: 15px;
+            margin-top: 30px;
+            color: white;
+        }
+
+        .tech-stack h3 {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .tech-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .tech-category {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+        }
+
+        .tech-category h4 {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .tech-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .tech-list li {
+            padding: 3px 0;
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .suggestions {
+            background: linear-gradient(135deg, #ffeaa7, #fdcb6e);
+            padding: 25px;
+            border-radius: 15px;
+            margin-top: 30px;
+        }
+
+        .suggestions h3 {
+            color: #2d3436;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .suggestion-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .suggestion-item {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #e17055;
+        }
+
+        .suggestion-item h4 {
+            color: #2d3436;
+            margin-bottom: 10px;
+        }
+
+        .suggestion-item p {
+            color: #636e72;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 768px) {
+            .flow-steps {
+                flex-direction: column;
+            }
+            
+            .arrow {
+                transform: rotate(90deg);
+            }
+            
+            .components {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>School Management System</h1>
+            <p>Enhanced Architecture for Web & Mobile Platform</p>
+        </div>
+
+        <div class="architecture-diagram">
+            <!-- Presentation Layer -->
+            <div class="layer presentation-layer">
+                <div class="layer-header">
+                    📱 Presentation Layer
+                </div>
+                <div class="layer-content">
+                    <div class="components">
+                        <div class="component">
+                            <h4>Web Application (React)</h4>
+                            <ul>
+                                <li>Admin Dashboard</li>
+                                <li>Teacher Portal</li>
+                                <li>Student Portal</li>
+                                <li>Parent Portal</li>
+                                <li>Results Visualization</li>
+                                <li>Financial Dashboard</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>Mobile Apps (React Native)</h4>
+                            <ul>
+                                <li>Cross-platform iOS/Android</li>
+                                <li>Push Notifications</li>
+                                <li>Offline Capability</li>
+                                <li>Quick Result Access</li>
+                                <li>Parent Communication</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>Progressive Web App</h4>
+                            <ul>
+                                <li>Service Workers</li>
+                                <li>Offline Support</li>
+                                <li>App-like Experience</li>
+                                <li>Push Notifications</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Layer -->
+            <div class="layer api-layer">
+                <div class="layer-header">
+                    🔗 API Gateway & Services Layer
+                </div>
+                <div class="layer-content">
+                    <div class="components">
+                        <div class="component">
+                            <h4>Core API (Express.js)</h4>
+                            <ul>
+                                <li>Authentication & Authorization</li>
+                                <li>User Management</li>
+                                <li>Academic Management</li>
+                                <li>Result Management</li>
+                                <li>Class & Subject Relations</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>Communication Service</h4>
+                            <ul>
+                                <li>WhatsApp Business API</li>
+                                <li>SMS Gateway Integration</li>
+                                <li>Email Service (Nodemailer)</li>
+                                <li>Newsletter Management</li>
+                                <li>Bulk Messaging Queue</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>Financial Service</h4>
+                            <ul>
+                                <li>M-Pesa Integration</li>
+                                <li>Payment Webhook Handlers</li>
+                                <li>Statement Generation</li>
+                                <li>Fee Management</li>
+                                <li>Financial Reporting</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>Analytics & Reporting</h4>
+                            <ul>
+                                <li>Progress Tracking API</li>
+                                <li>Performance Analytics</li>
+                                <li>Report Generation</li>
+                                <li>Data Visualization</li>
+                                <li>Export Services</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Business Logic Layer -->
+            <div class="layer business-layer">
+                <div class="layer-header">
+                    ⚙️ Business Logic Layer
+                </div>
+                <div class="layer-content">
+                    <div class="components">
+                        <div class="component">
+                            <h4>User Management</h4>
+                            <ul>
+                                <li>Role-based Access Control</li>
+                                <li>Permission Management</li>
+                                <li>Profile Management</li>
+                                <li>Authentication Logic</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>Academic Management</h4>
+                            <ul>
+                                <li>Class-Subject Relationships</li>
+                                <li>Student-Class Assignments</li>
+                                <li>Teacher-Subject Mapping</li>
+                                <li>Term & Year Management</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>Result Processing</h4>
+                            <ul>
+                                <li>Grade Calculations</li>
+                                <li>Progress Tracking</li>
+                                <li>Result Validation</li>
+                                <li>Performance Analytics</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>Communication Logic</h4>
+                            <ul>
+                                <li>Message Templating</li>
+                                <li>Bulk Processing</li>
+                                <li>Delivery Tracking</li>
+                                <li>Newsletter Management</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>Financial Processing</h4>
+                            <ul>
+                                <li>Payment Validation</li>
+                                <li>Fee Calculation</li>
+                                <li>Statement Generation</li>
+                                <li>Financial Reconciliation</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Layer -->
+            <div class="layer data-layer">
+                <div class="layer-header">
+                    🗄️ Data Persistence Layer
+                </div>
+                <div class="layer-content">
+                    <div class="components">
+                        <div class="component">
+                            <h4>MongoDB (Primary)</h4>
+                            <ul>
+                                <li>User Collections</li>
+                                <li>Academic Data</li>
+                                <li>Results & Grades</li>
+                                <li>Financial Records</li>
+                                <li>Communication Logs</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>Redis Cache</h4>
+                            <ul>
+                                <li>Session Management</li>
+                                <li>Frequently Accessed Data</li>
+                                <li>API Rate Limiting</li>
+                                <li>Temporary Storage</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>File Storage</h4>
+                            <ul>
+                                <li>AWS S3 / Cloudinary</li>
+                                <li>Profile Pictures</li>
+                                <li>Documents & Certificates</li>
+                                <li>Generated Reports</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>Message Queue</h4>
+                            <ul>
+                                <li>Redis Bull Queue</li>
+                                <li>Background Job Processing</li>
+                                <li>Bulk Message Handling</li>
+                                <li>Report Generation</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- External Services -->
+            <div class="layer external-layer">
+                <div class="layer-header">
+                    🌐 External Integrations
+                </div>
+                <div class="layer-content">
+                    <div class="components">
+                        <div class="component">
+                            <h4>Payment Gateways</h4>
+                            <ul>
+                                <li>M-Pesa STK Push</li>
+                                <li>M-Pesa C2B Callbacks</li>
+                                <li>Payment Reconciliation</li>
+                                <li>Transaction Logging</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>Messaging Services</h4>
+                            <ul>
+                                <li>WhatsApp Business API</li>
+                                <li>Twilio SMS</li>
+                                <li>Africa's Talking SMS</li>
+                                <li>Email Services</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>Analytics & Monitoring</h4>
+                            <ul>
+                                <li>Google Analytics</li>
+                                <li>Error Tracking (Sentry)</li>
+                                <li>Performance Monitoring</li>
+                                <li>Usage Analytics</li>
+                            </ul>
+                        </div>
+                        <div class="component">
+                            <h4>Authentication</h4>
+                            <ul>
+                                <li>OAuth 2.0 Providers</li>
+                                <li>Social Login</li>
+                                <li>Multi-factor Authentication</li>
+                                <li>Session Management</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Flow -->
+            <div class="data-flow">
+                <h3>📊 Data Flow Example: Result Entry & Notification</h3>
+                <div class="flow-steps">
+                    <div class="flow-step">Teacher enters results</div>
+                    <div class="arrow">→</div>
+                    <div class="flow-step">API validates & saves</div>
+                    <div class="arrow">→</div>
+                    <div class="flow-step">Triggers notification job</div>
+                    <div class="arrow">→</div>
+                    <div class="flow-step">Bulk message sent</div>
+                    <div class="arrow">→</div>
+                    <div class="flow-step">Parents/Students notified</div>
+                </div>
+            </div>
+
+            <!-- Technology Stack -->
+            <div class="tech-stack">
+                <h3>🛠️ Enhanced Technology Stack</h3>
+                <div class="tech-categories">
+                    <div class="tech-category">
+                        <h4>Frontend</h4>
+                        <ul class="tech-list">
+                            <li>React.js (existing)</li>
+                            <li>React Native (mobile)</li>
+                            <li>Vite (existing)</li>
+                            <li>Tailwind CSS (existing)</li>
+                            <li>Chart.js/Recharts</li>
+                            <li>PWA Service Worker</li>
+                        </ul>
+                    </div>
+                    <div class="tech-category">
+                        <h4>Backend</h4>
+                        <ul class="tech-list">
+                            <li>Node.js (existing)</li>
+                            <li>Express.js (existing)</li>
+                            <li>JWT Authentication (existing)</li>
+                            <li>Bull Queue (Redis)</li>
+                            <li>Socket.io (real-time)</li>
+                            <li>Nodemailer (existing)</li>
+                        </ul>
+                    </div>
+                    <div class="tech-category">
+                        <h4>Database & Storage</h4>
+                        <ul class="tech-list">
+                            <li>MongoDB (existing)</li>
+                            <li>Mongoose (existing)</li>
+                            <li>Redis Cache</li>
+                            <li>AWS S3 / Cloudinary</li>
+                            <li>GridFS (file storage)</li>
+                        </ul>
+                    </div>
+                    <div class="tech-category">
+                        <h4>External Services</h4>
+                        <ul class="tech-list">
+                            <li>M-Pesa API</li>
+                            <li>WhatsApp Business API</li>
+                            <li>Africa's Talking SMS</li>
+                            <li>Twilio</li>
+                            <li>Sentry (monitoring)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Suggestions -->
+            <div class="suggestions">
+                <h3>💡 Implementation Suggestions</h3>
+                <div class="suggestion-grid">
+                    <div class="suggestion-item">
+                        <h4>Database Enhancements</h4>
+                        <p>Add new collections: Payments, Messages, Newsletters, and FinancialStatements. Create proper indexes for performance optimization on frequently queried fields.</p>
+                    </div>
+                    <div class="suggestion-item">
+                        <h4>Mobile-First Approach</h4>
+                        <p>Since many parents/students use mobile, prioritize React Native app development with offline capabilities for viewing results and receiving notifications.</p>
+                    </div>
+                    <div class="suggestion-item">
+                        <h4>Microservices Consideration</h4>
+                        <p>As the system grows, consider splitting communication, financial, and analytics services into separate microservices for better scalability and maintenance.</p>
+                    </div>
+                    <div class="suggestion-item">
+                        <h4>Security & Compliance</h4>
+                        <p>Implement data encryption, audit logs, GDPR compliance for data protection, and secure payment processing with PCI DSS standards.</p>
+                    </div>
+                    <div class="suggestion-item">
+                        <h4>Performance Optimization</h4>
+                        <p>Use Redis caching for frequently accessed data, implement pagination for large datasets, and optimize database queries with proper indexing.</p>
+                    </div>
+                    <div class="suggestion-item">
+                        <h4>Backup & Disaster Recovery</h4>
+                        <p>Implement automated database backups, disaster recovery procedures, and data replication for high availability of the system.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

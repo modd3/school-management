@@ -25,15 +25,26 @@ const DashboardSection = ({ title, links = [] }) => {
             leaveTo="transform scale-y-0 opacity-0 origin-top"
           >
             <DisclosurePanel className="mt-2 space-y-2 px-4 py-2 bg-white border border-blue-100 rounded shadow-sm">
-              {links.map((link) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-blue-700 bg-blue-50 rounded hover:bg-blue-100 transition"
-                >
-                  {link.icon && <span className="text-blue-500">{link.icon}</span>}
-                  <span>{link.label}</span>
-                </Link>
+              {links.map((link, index) => (
+                link.isButton ? (
+                  <button
+                    key={`${link.label}-${index}`}
+                    onClick={link.onClick}
+                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-blue-700 bg-blue-50 rounded hover:bg-blue-100 transition"
+                  >
+                    {link.icon && <span className="text-blue-500">{link.icon}</span>}
+                    <span>{link.label}</span>
+                  </button>
+                ) : (
+                  <Link
+                    key={`${link.label}-${index}`}
+                    to={link.to}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-blue-700 bg-blue-50 rounded hover:bg-blue-100 transition"
+                  >
+                    {link.icon && <span className="text-blue-500">{link.icon}</span>}
+                    <span>{link.label}</span>
+                  </Link>
+                )
               ))}
             </DisclosurePanel>
           </Transition>

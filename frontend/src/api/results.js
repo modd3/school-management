@@ -37,30 +37,31 @@ export const getResultsByTeacher = async (queryString = '') => {
 
 // Fetch results for a specific student (for student use)
 export const getStudentResults = async (termId, examType) => {
-    try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            throw new Error('No authentication token found. Please log in.');
-        }
-        const response = await fetch(`${API_BASE_URL}/student/report/${termId}/${examType}`, {
-            method: 'GET',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw errorData;
-        }
-
-        return await response.json();
-    } catch (error) {
-        throw error;
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found. Please log in.');
     }
-}
+    
+    // Construct URL with path parameters
+    const response = await fetch(`${API_BASE_URL}/student/report/${termId}/${examType}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw errorData;
+    }
+
+    return await response.json();
+  } catch (error) {
+    throw error;
+  }
+}
 /**
  * Fetches class subjects assigned to the logged-in teacher for a specific term and academic year.
  * This function now targets the /api/class-subjects/me endpoint, which infers the teacher ID from the JWT.
@@ -165,3 +166,75 @@ export const submitResult = async (resultData) => {
     throw error;
   }
 };
+
+
+/**
+ * Fetches class exam results for a specific term and exam type
+ * @param {string} classId - The ID of the class
+ * @param {string} termId - The ID of the term
+ * @param {string} examType - The exam type (Opener, Midterm, Endterm)
+ */
+export const getClassExamResults = async (classId, termId, examType, role) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found. Please log in.');
+    }
+    
+    // Determine the correct API path based on the user's role
+    const basePath = role === 'admin' ? 'admin' : 'teacher';
+    const url = `${API_BASE_URL}/${basePath}/class-results/${classId}/${termId}/${examType}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch class exam results');
+    }
+
+    return await response.json();
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Fetches class final reports for a specific term
+ * @param {string} classId - The ID of the class
+ * @param {string} termId - The ID of the term
+ */
+export const getClassFinalReports = async (classId, termId, role) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found. Please log in.');
+    }
+    
+    // Determine the correct API path based on the user's role
+    const basePath = role === 'admin' ? 'admin' : 'teacher';
+    const url = `${API_BASE_URL}/${basePath}/class-final-reports/${classId}/${termId}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch class final reports');
+    }
+
+    return await response.json();
+  } catch (error) {
+    throw error;
+  }
+}

@@ -34,12 +34,11 @@ router.get('/results/published/term/:termId', async (req, res) => {
 router.get("/report/:termId/:examType", async (req, res) => {
     // Use the logged-in student's profileId
     req.params.studentId = req.user.profileId;
+    
     return getStudentExamReport(req, res);
 });
 
 router.get("/final-report/:termId", async (req, res) => {
-    // Use the logged-in student's profileId or _id
-    req.params.studentId = req.user.profileId;
     return getFinalReportCard(req, res);
 });
 

@@ -53,29 +53,25 @@ export default function StudentExamReportPage() {
       return;
     }
 
-    async function loadResults() {
-      setLoading(true);
-      setError(null);
-      try {
-        const queryParams = new URLSearchParams();
-        queryParams.append('termId', selectedTerm);
-        queryParams.append('examType', selectedExamType);
-        // The backend /student/results/my should implicitly use req.user._id for studentId
+  async function loadResults() {
+  setLoading(true);
+  setError(null);
+  try {
+    // Pass parameters directly instead of as a query string
+    const response = await getStudentResults(selectedTerm, selectedExamType);
+    setResults(Array.isArray(response.results) ? response.results : []);
+    setStudentInfo(response.student || null);
+  } catch (err) {
+    console.error('Failed to load exam report:', err);
+    setError(err.message || 'Failed to load exam report.');
+    setResults([]);
+    setStudentInfo(null);
+  } finally {
+    setLoading(false);
+  }
+}
 
-        const response = await getStudentResults(queryParams.toString());
-        // Assuming backend response structure: { success: true, results: [...], student: {...} }
-        setResults(Array.isArray(response.results) ? response.results : []);
-        setStudentInfo(response.student || null);
-      } catch (err) {
-        console.error('Failed to load exam report:', err);
-        setError(err.message || 'Failed to load exam report.');
-        setResults([]);
-        setStudentInfo(null);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadResults();
+  loadResults();
   }, [selectedTerm, selectedExamType, user]); // Depend on user to trigger fetch when auth state is ready
 
   // Update URL when selection changes (optional, for shareable links)

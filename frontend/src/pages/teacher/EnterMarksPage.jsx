@@ -46,7 +46,7 @@ export default function EnterMarksPage() {
         // Step 2: Load Class Subjects (only if user and term are available)
         if (user?._id && currentTermId && academicYear) {
           // getMyClassSubjects expects a query string like "term=ID&academicYear=YEAR"
-          const classSubjectsRes = await getMyClassSubjects(`term=${currentTermId}&academicYear=${academicYear}`);
+          const classSubjectsRes = await getMyClassSubjects(currentTermId, academicYear);
           const fetchedClassSubjects = classSubjectsRes.classSubjects || [];
           setClassSubjects(fetchedClassSubjects);
 

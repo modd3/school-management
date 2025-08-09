@@ -17,34 +17,47 @@ export default function StudentFinalReportPage() {
       return;
     }
 
-  const fetchFinalReport = async () => {
-    try {
-      const res = await fetch(`/api/student/final-report/${termId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
+    const fetchFinalReport = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const res = await fetch(`/api/student/final-report/${termId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(
+            errorData.message || `Failed to fetch final report (${res.status})`
+          );
         }
-      });
 
-      if (!res.ok) throw new Error(`Failed to fetch final report (${res.status})`);
+        const data = await res.json();
+        setReport(data);
+      } catch (err) {
+        console.error('❌ Fetch error:', err);
+        setError(err.message || 'Something went wrong');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      const data = await res.json();
-      setReport(data);
-    } catch (err) {
-      console.error('❌ Fetch error:', err);
-      setError(err.message || 'Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchFinalReport();
-      }, [termId, user?.token, user]);
+    fetchFinalReport();
+  }, [termId, user]);
 
   const { finalResults = [], student = {} } = report || {};
 
   if (loading) return <Spinner text="Loading final report..." />;
   if (error) return <div className="text-red-600 text-center mt-8">{error}</div>;
-  if (finalResults.length === 0) return <div className="text-center mt-8 text-gray-600">No final results available.</div>;
+  if (finalResults.length === 0) return (
+    <div className="text-center mt-8 text-gray-600">
+      No final results available for this term.
+    </div>
+  );
 
   return (
     <div className="max-w-5xl mx-auto p-6 bg-white shadow-md rounded-xl mt-8">

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getTerms } from '../api/terms';
+import { getTerms, getTeacherTerms } from '../api/terms';
+import { getClasses, getTeacherClasses } from '../api/classes';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   FaSignOutAlt, FaUserCircle, FaUserPlus, FaUsers, FaChalkboardTeacher,
   FaUserGraduate, FaClipboardList, FaBookOpen, FaListAlt, FaFileAlt,
-  FaCalendarAlt, FaLaptopHouse
+  FaCalendarAlt, FaLaptopHouse, FaChartBar, FaChartLine, FaEye, FaChild,
+  FaChartPie, FaChartArea
 } from 'react-icons/fa';
 import DashboardSection from '../components/DashboardSection';
 
@@ -13,25 +15,174 @@ const DashboardPage = () => {
   const { user, logout } = useAuth();
   const [termId, setTermId] = useState('');
   const [terms, setTerms] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const loadTerms = async () => {
+    const loadData = async () => {
       try {
-        const res = await getTerms();
-        setTerms(res.terms || []);
-        if (res.terms?.length > 0) {
-          setTermId(res.terms[0]._id);
+        setLoading(true);
+        let termsRes, classesRes;
+        
+        if (user.role === 'admin') {
+          [termsRes, classesRes] = await Promise.all([
+            getTerms(),
+            getClasses()
+          ]);
+        } else if (user.role === 'teacher') {
+          [termsRes, classesRes] = await Promise.all([
+            getTeacherTerms(),
+            getTeacherClasses()
+          ]);
+        } else {
+          termsRes = await getTerms();
+          classesRes = { classes: [] };
+        }
+        
+        setTerms(termsRes.terms || []);
+        setClasses(classesRes.classes || []);
+        
+        const today = new Date();
+        const currentTerm = termsRes.terms?.find(term => {
+          const startDate = new Date(term.startDate);
+          const endDate = new Date(term.endDate);
+          return today >= startDate && today <= endDate;
+        });
+        
+        if (currentTerm) {
+          setTermId(currentTerm._id);
+        } else if (termsRes.terms?.length > 0) {
+          setTermId(termsRes.terms[0]._id);
         }
       } catch (err) {
-        console.error('Failed to fetch terms');
+        console.error('Failed to fetch data', err);
+      } finally {
+        setLoading(false);
       }
     };
-    loadTerms();
-  }, []);
+    
+    if (user) {
+      loadData();
+    }
+  }, [user]);
 
   const handleLogout = async () => {
     await logout();
   };
+
+  const getTeacherClassId = () => {
+    if (user.role !== 'teacher' || user.teacherType !== 'class_teacher') return null;
+    
+    // Prioritize a direct ID from the user object if available
+    if (user.assignedClassId) return user.assignedClassId;
+    if (user.assignedClass) return user.assignedClass;
+
+    // As a fallback, find the class they are the teacher of from the classes list
+    if (classes && classes.length > 0) {
+        const teacherClass = classes.find(cls => cls.classTeacher === user.profileId || cls.classTeacher === user._id);
+        if (teacherClass) return teacherClass._id;
+    }
+    
+    return null;
+  }
+
+  const handleViewClassResults = (examType = 'Opener') => {
+    if (!termId) {
+      alert('Please wait for the current term to load.');
+      return;
+    }
+    
+    if (user.role === 'admin') {
+      navigate('/admin/class-results');
+      return;
+    }
+    
+    if (user.role === 'teacher') {
+        if (user.teacherType === 'class_teacher') {
+            const classId = getTeacherClassId();
+            if (classId) {
+                navigate(`/teacher/class-results/${classId}/${termId}/${examType}`);
+            } else {
+                 // Navigate to the selection page if no specific class is found
+                navigate('/teacher/class-results');
+            }
+        } else {
+            // For subject teachers, navigate to the generic page for them to select
+            navigate('/teacher/class-results');
+        }
+    }
+  };
+
+  const handleViewFinalReports = () => {
+    if (!termId) {
+      alert('Please wait for the current term to load.');
+      return;
+    }
+    
+    if (user.role === 'admin') {
+      navigate('/admin/class-final-reports');
+      return;
+    }
+    
+    if (user.role === 'teacher') {
+        if (user.teacherType === 'class_teacher') {
+            const classId = getTeacherClassId();
+            if (classId) {
+                navigate(`/teacher/class-final-reports/${classId}/${termId}`);
+            } else {
+                navigate('/teacher/class-final-reports');
+            }
+        } else {
+             // For subject teachers, navigate to the generic page for them to select
+            navigate('/teacher/class-final-reports');
+        }
+    }
+  };
+
+
+  const handleViewStudentResults = (examType) => {
+    if (!termId) {
+      alert('Please ensure terms are loaded');
+      return;
+    }
+    navigate(`/student/results/${termId}/${examType}`);
+  };
+
+  const handleViewStudentFinalReport = () => {
+    if (!termId) {
+      alert('Please ensure terms are loaded');
+      return;
+    }
+    navigate(`/student/final-report/${termId}`);
+  };
+
+  const handleViewChildResults = (examType) => {
+    if (!termId) {
+      alert('Please ensure terms are loaded');
+      return;
+    }
+    navigate(`/parent/child-results/${termId}/${examType}`);
+  };
+
+  const handleViewChildFinalReport = () => {
+    if (!termId) {
+      alert('Please ensure terms are loaded');
+      return;
+    }
+    navigate(`/parent/child-final-report/${termId}`);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 px-4 py-8">
+        <div className="max-w-4xl mx-auto text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   const renderAdminDashboard = () => {
     const adminLinks = [
@@ -42,7 +193,29 @@ const DashboardPage = () => {
       { to: '/admin/classes', label: 'Manage Classes', icon: <FaBookOpen /> },
       { to: '/admin/subjects', label: 'Manage Subjects', icon: <FaBookOpen /> },
       { to: '/admin/assign-class-subject', label: 'Assign Class Subjects', icon: <FaClipboardList /> },
-      { to: '/admin/terms', label: 'Manage Terms', icon: <FaCalendarAlt /> }
+      { to: '/admin/terms', label: 'Manage Terms', icon: <FaCalendarAlt /> },
+      { 
+        onClick: () => handleViewClassResults(), 
+        label: 'View Class Results', 
+        icon: <FaChartBar />,
+        isButton: true
+      },
+      { 
+        onClick: handleViewFinalReports, 
+        label: 'View Final Reports', 
+        icon: <FaChartLine />,
+        isButton: true
+      },
+      { 
+        to: '/admin/school-performance', 
+        label: 'School Performance', 
+        icon: <FaChartPie />
+      },
+      { 
+        to: '/admin/subject-analysis', 
+        label: 'Subject Analysis', 
+        icon: <FaChartArea />
+      }
     ];
 
     return <DashboardSection title="Admin Panel" links={adminLinks} />;
@@ -52,111 +225,111 @@ const DashboardPage = () => {
     let teacherLinks = [];
     let title = '';
 
-    switch (user.teacherType) {
-      case 'class_teacher':
+    const commonTeacherLinks = [
+        { to: '/teacher/enter-marks', label: 'Enter Marks', icon: <FaClipboardList /> },
+        { to: '/teacher/results/entered-by-me', label: 'My Entered Results', icon: <FaListAlt /> },
+    ];
+    
+    if (user.teacherType === 'class_teacher') {
         title = 'Class Teacher Panel';
         teacherLinks = [
-          { to: '/teacher/enter-marks', label: 'Enter Marks', icon: <FaClipboardList /> },
-          { to: '/teacher/results/entered-by-me', label: 'Results By Me', icon: <FaListAlt /> },
-          { to: '/teacher/class-results', label: 'Class Results', icon: <FaFileAlt /> },
-          { to: '/teacher/publish-results', label: 'Publish Results', icon: <FaFileAlt /> },
-          { to: '/teacher/report-comments', label: 'Report Comments', icon: <FaBookOpen /> }
+            ...commonTeacherLinks,
+            { 
+                onClick: () => handleViewClassResults('Opener'), 
+                label: 'Class Opener Results', 
+                icon: <FaFileAlt />,
+                isButton: true
+            },
+            { 
+                onClick: () => handleViewClassResults('Midterm'), 
+                label: 'Class Midterm Results', 
+                icon: <FaFileAlt />,
+                isButton: true
+            },
+            { 
+                onClick: () => handleViewClassResults('Endterm'), 
+                label: 'Class Endterm Results', 
+                icon: <FaFileAlt />,
+                isButton: true
+            },
+            { 
+                onClick: handleViewFinalReports, 
+                label: 'Class Final Reports', 
+                icon: <FaChartLine />,
+                isButton: true
+            },
         ];
-        break;
-      case 'subject_teacher':
-        title = 'Subject Teacher Panel';
+    } else { // subject_teacher or other types
+        title = 'Teacher Panel';
         teacherLinks = [
-          { to: '/teacher/enter-marks', label: 'Enter Marks', icon: <FaClipboardList /> },
-          { to: '/teacher/results/entered-by-me', label: 'Results By Me', icon: <FaListAlt /> },
-          { to: '/teacher/subject-results', label: 'Subject Results', icon: <FaFileAlt /> },
-          { to: '/teacher/comment', label: 'Add Subject Comments', icon: <FaBookOpen /> }
+            ...commonTeacherLinks,
+            { to: '/teacher/class-results', label: 'View Class Results', icon: <FaChartBar /> },
         ];
-        break;
-      case 'principal':
-        title = 'Principal Panel';
-        teacherLinks = [
-          { to: '/principal/overview', label: 'Overview', icon: <FaClipboardList /> },
-          { to: '/principal/results-approval', label: 'Approve Results', icon: <FaFileAlt /> },
-          { to: '/principal/communications', label: 'School Communication', icon: <FaBookOpen /> }
-        ];
-        break;
-      case 'deputy':
-        title = 'Deputy Panel';
-        teacherLinks = [
-          { to: '/deputy/overview', label: 'Deputy Overview', icon: <FaClipboardList /> },
-          { to: '/deputy/discipline', label: 'Manage Discipline', icon: <FaFileAlt /> },
-          { to: '/deputy/communications', label: 'School Communication', icon: <FaBookOpen /> }
-        ];
-        break;
-      default:
-        return <p className="text-gray-600 mt-4">Your teacher type is not supported yet.</p>;
     }
 
     return <DashboardSection title={title} links={teacherLinks} />;
   };
 
   const renderStudentDashboard = () => {
-    if (!termId) {
-      return (
-        <div className="bg-white border border-blue-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
-            <FaUserGraduate /> Student Panel
-          </h3>
-          <div className="mb-4">
-            <label className="block font-semibold text-sm text-gray-700 mb-1">
-              <FaCalendarAlt className="inline-block mr-2" />
-              Select Term
-            </label>
-            <select 
-              value={termId} 
-              onChange={e => setTermId(e.target.value)} 
-              className="w-full border rounded px-3 py-2"
-            >
-              <option value="">-- Select Term --</option>
-              {terms.map(term => (
-                <option key={term._id} value={term._id}>{term.name}</option>
-              ))}
-            </select>
-          </div>
-          <p className="text-gray-600 text-sm">Please select a term to view your options.</p>
-        </div>
-      );
-    }
-
     const studentLinks = [
-      { to: `/student/report/${termId}/Opener`, label: 'Opener Report', icon: <FaBookOpen /> },
-      { to: `/student/report/${termId}/Midterm`, label: 'Midterm Report', icon: <FaBookOpen /> },
-      { to: `/student/report/${termId}/Endterm`, label: 'Endterm Report', icon: <FaBookOpen /> },
-      { to: `/student/final-report/${termId}`, label: 'Final Report Card', icon: <FaFileAlt /> },
-      { to: '/student/class-schedule', label: 'Class Schedule', icon: <FaClipboardList /> }
+      { 
+        onClick: () => handleViewStudentResults('Opener'), 
+        label: 'View Opener Results', 
+        icon: <FaEye />,
+        isButton: true
+      },
+      { 
+        onClick: () => handleViewStudentResults('Midterm'), 
+        label: 'View Midterm Results', 
+        icon: <FaEye />,
+        isButton: true
+      },
+      { 
+        onClick: () => handleViewStudentResults('Endterm'), 
+        label: 'View Endterm Results', 
+        icon: <FaEye />,
+        isButton: true
+      },
+      { 
+        onClick: handleViewStudentFinalReport, 
+        label: 'View Final Report', 
+        icon: <FaFileAlt />,
+        isButton: true
+      },
+      { to: '/student/profile', label: 'My Profile', icon: <FaUserCircle /> },
+      { to: '/student/timetable', label: 'Class Timetable', icon: <FaCalendarAlt /> }
     ];
 
-    return (
-      <div className="space-y-4">
-        <div className="bg-white border border-blue-200 rounded-lg p-4">
-          <label className="block font-semibold text-sm text-gray-700 mb-1">
-            <FaCalendarAlt className="inline-block mr-2" />
-            Select Term
-          </label>
-          <select 
-            value={termId} 
-            onChange={e => setTermId(e.target.value)} 
-            className="w-full border rounded px-3 py-2"
-          >
-            <option value="">-- Select Term --</option>
-            {terms.map(term => (
-              <option key={term._id} value={term._id}>{term.name}</option>
-            ))}
-          </select>
-        </div>
-        <DashboardSection title="Student Panel" links={studentLinks} />
-      </div>
-    );
+    return <DashboardSection title="Student Panel" links={studentLinks} />;
   };
 
   const renderParentDashboard = () => {
     const parentLinks = [
-      { to: '/parent/children-results', label: 'Children Results', icon: <FaListAlt /> },
+      { 
+        onClick: () => handleViewChildResults('Opener'), 
+        label: "View Child's Opener Results", 
+        icon: <FaEye />,
+        isButton: true
+      },
+      { 
+        onClick: () => handleViewChildResults('Midterm'), 
+        label: "View Child's Midterm Results", 
+        icon: <FaEye />,
+        isButton: true
+      },
+      { 
+        onClick: () => handleViewChildResults('Endterm'), 
+        label: "View Child's Endterm Results", 
+        icon: <FaEye />,
+        isButton: true
+      },
+      { 
+        onClick: handleViewChildFinalReport, 
+        label: "View Child's Final Report", 
+        icon: <FaFileAlt />,
+        isButton: true
+      },
+      { to: '/parent/child-profile', label: "Child's Profile", icon: <FaChild /> },
       { to: '/parent/communications', label: 'School Communications', icon: <FaBookOpen /> }
     ];
 
@@ -172,9 +345,26 @@ const DashboardPage = () => {
             <FaUserCircle /> Welcome to Your Dashboard
           </h2>
           {user ? (
-            <p className="text-gray-700 text-center">
-              Hello <strong>{user.firstName} {user.lastName}</strong> — <span className="text-blue-500">{user.roleMapping || user.role}</span>
-            </p>
+            <div className="text-center">
+              <p className="text-gray-700">
+                Hello <strong>{user.firstName} {user.lastName}</strong> — <span className="text-blue-500">{user.roleMapping || user.role}</span>
+              </p>
+              {user.role === 'teacher' && user.teacherType === 'class_teacher' && user.assignedClassName && (
+                <p className="mt-2 text-sm text-gray-600">
+                  Assigned Class: <span className="font-semibold">{user.assignedClassName}</span>
+                </p>
+              )}
+              {user.role === 'student' && user.currentClass && (
+                <p className="mt-2 text-sm text-gray-600">
+                  Class: <span className="font-semibold">{user.currentClass}</span>
+                </p>
+              )}
+              {user.role === 'parent' && user.children && user.children.length > 0 && (
+                <p className="mt-2 text-sm text-gray-600">
+                  Children: <span className="font-semibold">{user.children.map(child => child.name).join(', ')}</span>
+                </p>
+              )}
+            </div>
           ) : (
             <p className="text-center text-gray-600">Loading user info...</p>
           )}
@@ -187,6 +377,16 @@ const DashboardPage = () => {
             {user.role === 'teacher' && renderTeacherDashboard()}
             {user.role === 'student' && renderStudentDashboard()}
             {user.role === 'parent' && renderParentDashboard()}
+          </div>
+        )}
+
+        {/* Current Term Info */}
+        {termId && terms.length > 0 && (
+          <div className="bg-blue-50 rounded-xl border border-blue-200 p-4">
+            <h3 className="text-sm font-medium text-blue-800 mb-2">Current Academic Term</h3>
+            <p className="text-blue-700">
+              {terms.find(t => t._id === termId)?.name || 'Unknown Term'}
+            </p>
           </div>
         )}
 
