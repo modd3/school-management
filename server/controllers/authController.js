@@ -155,7 +155,6 @@ exports.register = asyncHandler(async (req, res) => {
                 parentContacts: parentContactIds, // Use parentContactIds from frontend
                 currentClass: classId, // Link student to their current class
                 academicYear: academicYear, // Store academic year on student for current context
-                admissionNumber: `ADM-${Date.now()}`, // Auto-generate a simple admission number
                 stream: stream || null, // Set stream from profileData or null
             });
 

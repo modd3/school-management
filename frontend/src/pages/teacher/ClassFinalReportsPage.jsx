@@ -6,6 +6,8 @@ import { getClasses, getTeacherClasses } from '../../api/classes';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../../components/Spinner';
 import { useAuth } from '../../context/AuthContext';
+import { getMyClassAsClassTeacher } from '../../api/classes';
+
 
 const ClassFinalReportsPage = () => {
   const { classId, termId } = useParams();
@@ -28,15 +30,27 @@ const ClassFinalReportsPage = () => {
       try {
         setLoading(true);
         // Fetch classes and terms based on user role
-        const classesPromise = isAdmin ? getClasses() : getTeacherClasses();
+        let classesData;
+              
+              if (isAdmin) {
+                classesData = await getClasses();
+              } else if (user.teacherType === 'class_teacher') {
+                classesData = await getMyClassAsClassTeacher();
+              } else {
+                classesData = await getTeacherClasses();
+              }
+        
+              setClasses(classesData.classes || []);
+        
+              if (user.teacherType === 'class_teacher' && classesData.classes?.length) {
+                setSelectedClass(classesData.classes[0]._id);
+              }
         const termsPromise = isAdmin ? getTerms() : getTeacherTerms();
 
-        const [classesData, termsData] = await Promise.all([
-          classesPromise,
+        const [termsData] = await Promise.all([
           termsPromise
         ]);
-        
-        setClasses(classesData.classes || []);
+
         setTerms(termsData.terms || []);
         
         // If parameters are in the URL, fetch the reports
@@ -73,6 +87,25 @@ const ClassFinalReportsPage = () => {
     navigate(`${basePath}/class-results/${selectedClass}/${selectedTerm}/Opener`);
   };
 
+  // Build a unique ordered list of all subjects for the table header
+const allSubjects = reports?.reports
+  ? Array.from(
+      new Set(
+        reports.reports.flatMap(report =>
+          report.finalResults.map(subject => subject.subject)
+        )
+      )
+    )
+  : [];
+
+// Map subject name for headers
+const subjectNames = {};
+reports?.reports?.forEach(report => {
+  report.finalResults.forEach(subject => {
+    subjectNames[subject.subject] = subject.subjectName || subject.subject;
+  });
+});
+
   if (user && user.role !== 'admin' && user.role !== 'teacher') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -106,11 +139,11 @@ const ClassFinalReportsPage = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
             <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md"
-              required
-              disabled={!isAdmin && classes.length === 1}
+                value={selectedClass}
+  onChange={(e) => setSelectedClass(e.target.value)}
+  className="w-full p-2 border border-gray-300 rounded-md"
+  required
+  disabled={user?.teacherType === 'class_teacher'}
             >
               <option value="">Select Class</option>
               {classes.map((cls) => (
@@ -171,12 +204,13 @@ const ClassFinalReportsPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission No.</th>
-                  {reports.reports[0]?.finalResults.map((subject) => (
-                    <th key={subject.subject} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {subject.subject}
+                  {allSubjects.map(subjectId => (
+                    <th key={subjectId} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {subjectNames[subjectId]}
                     </th>
                   ))}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overall Average</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overall Grade</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -187,12 +221,23 @@ const ClassFinalReportsPage = () => {
                       {report.student.firstName} {report.student.lastName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">{report.student.admissionNumber}</td>
-                    {report.finalResults.map((subject) => (
-                      <td key={subject.subject} className="px-6 py-4 whitespace-nowrap">
-                        {subject.finalPercentage}% ({subject.grade})
-                      </td>
-                    ))}
-                    <td className="px-6 py-4 whitespace-nowrap font-semibold">{report.overallAverage}</td>
+                    {allSubjects.map(subjectId => {
+                      const subj = report.finalResults.find(s => s.subject === subjectId);
+                      return (
+                        <td key={subjectId} className="px-6 py-4 whitespace-nowrap">
+                          {subj
+                            ? `${Number(subj.finalPercentage).toFixed(2)}% (${subj.grade})`
+                            : <span className="text-gray-400 font-semibold">0.00%</span>
+                          }
+                        </td>
+                      );
+                    })}
+                    <td className="px-6 py-4 whitespace-nowrap font-semibold">
+                      {Number(report.overallAverage).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap font-semibold">
+                      {report.overallGrade || 'N/A'}
+                    </td>
                   </tr>
                 ))}
               </tbody>

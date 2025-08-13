@@ -5,8 +5,10 @@ const {
     getStudentResultsForTerm,
     getPublishedResultsForClass,
     getStudentExamReport,
-    getFinalReportCard
+    getFinalReportCard,
+    getStudentClassPosition
 } = require('../controllers/resultController');
+const StudentClass = require('../models/StudentClass');
 
 // Protect all student routes
 router.use(protect);
@@ -39,7 +41,27 @@ router.get("/report/:termId/:examType", async (req, res) => {
 });
 
 router.get("/final-report/:termId", async (req, res) => {
+    const userId = req.user._id; // from auth middleware
+    const termId = req.params.termId;
+
+    // Find StudentClass for this student and term
+    const studentClass = await StudentClass.findOne({ student: userId, academicYear: req.query.academicYear || undefined, term: termId })
+        .populate('class');
+
+    let className = 'N/A';
+    let stream = 'N/A';
+    let academicYear = 'N/A';
+
+    if (studentClass && studentClass.class) {
+        className = studentClass.class.name;
+        stream = Array.isArray(studentClass.class.stream) ? studentClass.class.stream.join(', ') : studentClass.class.stream || 'N/A';
+        academicYear = studentClass.academicYear || 'N/A';
+    }
+
     return getFinalReportCard(req, res);
 });
+
+// Get student class position
+router.get('/class-position/:classId/:termId', getStudentClassPosition);
 
 module.exports = router;

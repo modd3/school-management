@@ -100,12 +100,8 @@ export async function getMyClassAsClassTeacher() {
   const res = await fetch('/api/teacher/my-class', {
     method: 'GET',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
   });
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch class: ${res.status}`);
-  }
-
-  return await res.json(); // { classes: [...] }
+  return handleResponse(res);
 }

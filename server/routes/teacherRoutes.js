@@ -20,6 +20,8 @@ const { getAllClasses } = require('../controllers/classController');
 const { getAllTerms } = require('../controllers/termController');
 const { getResultsByTeacher, getClassExamResults,
   getClassFinalReports } = require('../controllers/resultController');
+const { verifyClassTeacher } = require('../middleware/classTeacherAuth');
+const Class = require('../models/Class');
 
 // Protect all teacher routes
 router.use(protect);
@@ -43,11 +45,13 @@ router.get('/results/class/:classId/term/:termId', getClassResultsForTerm);
 router.get('/results/entered-by-me', getResultsByTeacher);
 
 router.get('/class-results/:classId/:termId/:examType',
-  getClassExamResults
+  getClassExamResults,
+  verifyClassTeacher
 );
 
 router.get('/class-final-reports/:classId/:termId', 
-  getClassFinalReports
+  getClassFinalReports,
+  verifyClassTeacher
 );
 
 router.get('/student-report/:studentId/:termId/:examType', getStudentExamReport);
@@ -55,14 +59,16 @@ router.get('/student-report/:studentId/:termId/:examType', getStudentExamReport)
 // GET /api/classes/my-class
 router.get('/my-class', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'teacher' || req.user.teacherType !== 'class_teacher') {
+  
+    if (req.user.role !== 'teacher' || req.user.profile.teacherType !== 'class_teacher') {
       return res.status(403).json({ message: 'Not authorized as class teacher' });
     }
 
     // Find the teacher's assigned class
-    const myClass = await Class.findOne({ classTeacher: req.user.profileId })
+    const myClass = await Class.findOne({ classTeacher: req.user._id })
       .populate('classTeacher', 'firstName lastName')
       .lean();
+      
 
     if (!myClass) {
       return res.status(404).json({ message: 'No assigned class found' });

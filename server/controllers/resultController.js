@@ -5,6 +5,8 @@ const Subject = require('../models/Subject');
 const Term = require('../models/Term');
 const asyncHandler = require('express-async-handler');
 const {getStudentResultsByExamType} = require('../utils/examResults');
+const Class = require('../models/Class')
+const StudentClass = require('../models/StudentClass');
 
 
 // @desc    Enter marks for a student in a subject for a term and exam type
@@ -12,8 +14,6 @@ const {getStudentResultsByExamType} = require('../utils/examResults');
 // @access  Private (Teacher, Class Teacher, Subject Teacher)
 exports.enterMarks = async (req, res) => {
     const { studentId, classSubjectId, termId, academicYear, examType, marksObtained, outOf, comment} = req.body;
-
-    console.log('Received data:', { studentId, classSubjectId, termId, academicYear, examType, marksObtained, outOf, comment, academicYear });
 
     if (!studentId || !classSubjectId || !termId || !examType || marksObtained === undefined || outOf === undefined) {
         return res.status(400).json({ message: 'Missing required fields: studentId, classSubjectId, termId, examType, marksObtained, outOf' });
@@ -148,6 +148,7 @@ exports.getStudentResultsForTerm = async (req, res) => {
 // @access  Private (Teacher, Class Teacher, Subject Teacher)
 exports.getClassResultsForTerm = async (req, res) => {
     const { classId, termId } = req.params;
+    console.log(classId, termId);
 
     try {
         const studentsInClass = await Student.find({ currentClass: classId })
@@ -478,20 +479,46 @@ exports.getFinalReportCard = asyncHandler(async (req, res) => {
 
 exports.getClassExamResults = asyncHandler(async (req, res) => {
   const { classId, termId, examType } = req.params;
+  let classObj;
 
   try {
-    const classObj = await Class.findById(classId);
-    if (!classObj) return res.status(404).json({ message: 'Class not found' });
+
+    if (req.user.role === 'teacher') {
+
+      classObj = await Class.findOne({ classTeacher: req.user._id });
+
+      if (!classObj) {
+        return res.status(403).json({
+          message: 'You are not assigned as class teacher to any class'
+        });
+      }
+
+      if (classObj._id.toString() !== classId) {
+        return res.status(403).json({
+          message: 'You can only view results for your assigned class'
+        });
+      }
+    } else {
+      // For admins, fetch the class normally
+      classObj = await Class.findById(classId);
+    }
+
+    if (!classObj) {
+      return res.status(404).json({ message: 'Class not found' });
+    }
 
     const term = await Term.findById(termId);
-    if (!term) return res.status(404).json({ message: 'Term not found' });
+    if (!term) {
+      return res.status(404).json({ message: 'Term not found' });
+    }
 
-    const students = await Student.find({ currentClass: classId })
-      .select('firstName lastName admissionNumber')
+    const studentClassMappings = await StudentClass.find({ class: classObj._id, academicYear: term.academicYear, status: 'Active' })
+      .populate('student', 'firstName lastName admissionNumber')
       .lean();
+    const students = studentClassMappings.map(m => m.student);
 
     const studentIds = students.map(s => s._id);
-    
+
     const results = await Result.find({
       student: { $in: studentIds },
       term: termId,
@@ -571,17 +598,49 @@ exports.getClassExamResults = asyncHandler(async (req, res) => {
 
 exports.getClassFinalReports = asyncHandler(async (req, res) => {
   const { classId, termId } = req.params;
+  let classObj;
 
   try {
-    const classObj = await Class.findById(classId);
-    if (!classObj) return res.status(404).json({ message: 'Class not found' });
+
+    if (req.user.role === 'teacher') {
+      classObj = await Class.findOne({ classTeacher: req.user._id })
+
+      if (!classObj) {
+      
+        return res.status(403).json({
+          message: 'You are not assigned as class teacher to any class'
+        });
+      }
+
+      if (classObj._id.toString() !== classId) {
+        
+        return res.status(403).json({
+          message: 'You can only view results for your assigned class'
+        });
+      }
+     
+    } else {
+      // For admins, fetch the class normally
+      classObj = await Class.findById(classId);
+      if (!classObj) {
+            return res.status(404).json({ message: 'Class not found' });
+      }
+    }
+
+    if (!classObj) {
+      return res.status(404).json({ message: 'Class not found' });
+      return res.status(404).json({ message: 'Class not found' });
+    }
 
     const term = await Term.findById(termId);
-    if (!term) return res.status(404).json({ message: 'Term not found' });
+    if (!term) {
+      return res.status(404).json({ message: 'Term not found' });
+    }
 
-    const students = await Student.find({ currentClass: classId })
-      .select('firstName lastName admissionNumber')
+    const studentClassMappings = await StudentClass.find({ class: classObj._id, academicYear: term.academicYear, status: 'Active' })
+      .populate('student', 'firstName lastName admissionNumber')
       .lean();
+    const students = studentClassMappings.map(m => m.student);
 
     const studentIds = students.map(s => s._id);
 
@@ -596,6 +655,8 @@ exports.getClassFinalReports = asyncHandler(async (req, res) => {
         select: 'name'
       }
     });
+
+  
 
     // Organize results by student and exam type
     const studentReports = new Map();
@@ -700,3 +761,52 @@ exports.getClassFinalReports = asyncHandler(async (req, res) => {
     });
   }
 });
+
+// @desc Get student class position
+// GET /api/student/position/:classId/:termId
+exports.getStudentClassPosition = async (req, res) => {
+  const { classId, termId } = req.params;
+  const studentId = req.user.profileId;
+  try {
+    const term = await Term.findById(termId);
+    if (!term) return res.status(404).json({ message: 'Term not found' });
+
+    const studentClassMappings = await StudentClass.find({ class: classId, academicYear: term.academicYear, status: 'Active' });
+    const studentIds = studentClassMappings.map(m => m.student);
+
+    // Fetch all results for these students for the term
+    const results = await Result.find({
+      student: { $in: studentIds },
+      term: termId
+    });
+
+    // Calculate mean points for each student
+    const studentMeanPoints = {};
+    studentIds.forEach(id => { studentMeanPoints[id.toString()] = { totalPoints: 0, subjects: 0 }; });
+
+    results.forEach(result => {
+      if (studentMeanPoints[result.student.toString()] !== undefined) {
+        studentMeanPoints[result.student.toString()].totalPoints += result.points || 0;
+        studentMeanPoints[result.student.toString()].subjects += 1;
+      }
+    });
+
+    // Build array and sort by mean points descending
+    const sorted = Object.entries(studentMeanPoints)
+      .map(([id, { totalPoints, subjects }]) => ({
+        id,
+        meanPoints: subjects > 0 ? totalPoints / subjects : 0
+      }))
+      .sort((a, b) => b.meanPoints - a.meanPoints);
+
+    // Find position for current student
+    const positionObj = sorted.findIndex(s => s.id === studentId.toString());
+    const position = positionObj >= 0 ? positionObj + 1 : null;
+    const outOf = sorted.length;
+
+    res.json({ position, outOf });
+  } catch (err) {
+    console.error('Error fetching student position:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};

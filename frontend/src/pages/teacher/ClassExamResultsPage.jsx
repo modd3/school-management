@@ -6,6 +6,7 @@ import { getClasses, getTeacherClasses } from '../../api/classes';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../../components/Spinner';
 import { useAuth } from '../../context/AuthContext';
+import { getMyClassAsClassTeacher } from '../../api/classes';
 
 const ClassExamResultsPage = () => {
   const { classId, termId, examType } = useParams();
@@ -28,16 +29,28 @@ const ClassExamResultsPage = () => {
       if (!user) return; // Wait until user object is available
       try {
         setLoading(true);
-        // Fetch classes and terms based on user role
-        const classesPromise = isAdmin ? getClasses() : getTeacherClasses();
+         let classesData;
+      
+      if (isAdmin) {
+        classesData = await getClasses();
+      } else if (user.teacherType === 'class_teacher') {
+        classesData = await getMyClassAsClassTeacher();
+      } else {
+        classesData = await getTeacherClasses();
+      }
+
+      setClasses(classesData.classes || []);
+
+      if (user.teacherType === 'class_teacher' && classesData.classes?.length) {
+        setSelectedClass(classesData.classes[0]._id);
+      }
+      
         const termsPromise = isAdmin ? getTerms() : getTeacherTerms();
         
-        const [classesData, termsData] = await Promise.all([
-          classesPromise,
+        const [termsData] = await Promise.all([
           termsPromise
         ]);
-        
-        setClasses(classesData.classes || []);
+
         setTerms(termsData.terms || []);
         
         // If parameters are in the URL, fetch the results
@@ -98,6 +111,25 @@ const ClassExamResultsPage = () => {
     return <LoadingSpinner />;
   }
 
+  // 1. Get all unique subjects in order
+const allSubjects = results?.results
+  ? Array.from(
+      new Set(
+        results.results.flatMap(studentResult =>
+          studentResult.results.map(subject => subject.subject)
+        )
+      )
+    )
+  : [];
+
+// 2. Map subject name for headers
+const subjectNames = {};
+results?.results.forEach(studentResult => {
+  studentResult.results.forEach(subject => {
+    subjectNames[subject.subject] = subject.subjectName || subject.subject; // Use subjectName if available
+  });
+});
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Class Exam Results</h1>
@@ -107,11 +139,11 @@ const ClassExamResultsPage = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
             <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md"
-              required
-              disabled={!isAdmin && classes.length === 1}
+                value={selectedClass}
+  onChange={(e) => setSelectedClass(e.target.value)}
+  className="w-full p-2 border border-gray-300 rounded-md"
+  required
+  disabled={user?.teacherType === 'class_teacher'}
             >
               <option value="">Select Class</option>
               {classes.map((cls) => (
@@ -186,9 +218,9 @@ const ClassExamResultsPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission No.</th>
-                  {results.results[0]?.results.map((subject) => (
-                    <th key={subject.subject} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {subject.subject}
+                  {allSubjects.map(subjectId => (
+                    <th key={subjectId} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {subjectNames[subjectId]}
                     </th>
                   ))}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
@@ -203,13 +235,19 @@ const ClassExamResultsPage = () => {
                       {studentResult.student.firstName} {studentResult.student.lastName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">{studentResult.student.admissionNumber}</td>
-                    {studentResult.results.map((subject) => (
-                      <td key={subject.subject} className="px-6 py-4 whitespace-nowrap">
-                        {subject.marksObtained}/{subject.outOf} ({subject.percentage}%)
-                      </td>
-                    ))}
-                    <td className="px-6 py-4 whitespace-nowrap font-semibold">{studentResult.totalMarks}</td>
-                    <td className="px-6 py-4 whitespace-nowrap font-semibold">{studentResult.averagePercentage}%</td>
+                    {allSubjects.map(subjectId => {
+                      const subj = studentResult.results.find(s => s.subject === subjectId);
+                      return (
+                        <td key={subjectId} className="px-6 py-4 whitespace-nowrap">
+                          {subj
+                            ? `${subj.marksObtained}/${subj.outOf} (${Number(subj.percentage).toFixed(2)}%)`
+                            : <span className="text-gray-400">-</span>
+                          }
+                        </td>
+                      );
+                    })}
+                    <td className="px-6 py-4 font-semibold">{Number(studentResult.totalMarks).toFixed(2)}</td>
+                    <td className="px-6 py-4 font-semibold">{Number(studentResult.averagePercentage).toFixed(2)}%</td>
                   </tr>
                 ))}
               </tbody>

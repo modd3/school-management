@@ -264,7 +264,7 @@ function App() {
 />
 
         <Route
-        path="/student/report/:termId/:examType"
+        path="/student/results/:termId/:examType"
         element={<ProtectedRoute allowedRoles={['student']}>
           <StudentExamReportPage />
         </ProtectedRoute>}

@@ -152,11 +152,17 @@ export default function EnterMarksPage() {
         // Simplified frontend grading for display. Backend handles the actual grading logic.
         let displayGrade = 'N/A';
         if (percentage >= 80) displayGrade = 'A';
-        else if (percentage >= 70) displayGrade = 'B';
-        else if (percentage >= 60) displayGrade = 'C';
-        else if (percentage >= 50) displayGrade = 'D';
-        else if (percentage >= 40) displayGrade = 'E';
-        else displayGrade = 'F';
+        else if (percentage >= 75 && percentage <= 79.99) displayGrade = 'A-';
+        else if (percentage >= 70 && percentage <= 74.99) displayGrade = 'B+';
+        else if (percentage >= 65 && percentage <= 69.99) displayGrade = 'B';
+        else if (percentage >= 60 && percentage <= 64.99) displayGrade = 'B-';
+        else if (percentage >= 55 && percentage <= 59.99) displayGrade = 'C+';
+        else if (percentage >= 50 && percentage <= 54.99) displayGrade = 'C';
+        else if (percentage >= 45 && percentage <= 49.99) displayGrade = 'C-';
+        else if (percentage >= 40 && percentage <= 44.99) displayGrade = 'D+';
+        else if (percentage >= 35 && percentage <= 39.99) displayGrade = 'D';
+        else if (percentage >= 30 && percentage <= 34.99) displayGrade = 'D-';
+        else displayGrade = 'E';
 
         updatedStudentMarks.percentage = percentage;
         updatedStudentMarks.grade = displayGrade;
@@ -352,7 +358,6 @@ console.log(JSON.stringify(resultData));
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Total Marks</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Percentage</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Grade</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Comment</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Action</th>
               </tr>
             </thead>
@@ -361,8 +366,7 @@ console.log(JSON.stringify(resultData));
                 const studentMarks = marks[student._id] || {};
                 const percentage = studentMarks.percentage !== null ? studentMarks.percentage : 'N/A';
                 const grade = studentMarks.grade || 'N/A';
-                const comment = studentMarks.comment || '';
-
+                
                 return (
                   <tr key={student._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -395,12 +399,12 @@ console.log(JSON.stringify(resultData));
                         percentage >= 40 ? 'bg-orange-100 text-orange-800' :
                         'bg-red-100 text-red-800'
                       }`}>
-                        {percentage}%
+                        {Number(percentage).toFixed(2)}%
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                       <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        grade === 'A' ? 'bg-green-100 text-green-800' :
+                        grade.startsWith('A') ? 'bg-green-100 text-green-800' :
                         grade.startsWith('B') ? 'bg-blue-100 text-blue-800' :
                         grade.startsWith('C') ? 'bg-yellow-100 text-yellow-800' :
                         grade.startsWith('D') ? 'bg-orange-100 text-orange-800' :
@@ -408,16 +412,6 @@ console.log(JSON.stringify(resultData));
                       }`}>
                         {grade}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      <input
-                        type="text"
-                        value={comment}
-                        onChange={e => handleChange(student._id, 'comment', e.target.value)}
-                        className="w-full border border-gray-300 p-2 rounded focus:border-blue-500 focus:outline-none"
-                        placeholder="Optional comment"
-                        maxLength="500"
-                      />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
