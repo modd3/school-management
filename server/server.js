@@ -1,20 +1,21 @@
 // server.js
 const express = require('express');
 const dotenv = require('dotenv');
-const connectDB = require('./config/db'); // Your DB connection file
-const authRoutes = require('./routes/authRoutes'); // Assuming you have this
+const connectDB = require('./config/db'); 
+const authRoutes = require('./routes/authRoutes'); 
 const teacherRoutes = require('./routes/teacherRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const parentRoutes = require('./routes/parentRoutes');
-const principalRoutes = require('./routes/principalRoutes'); // New principal routes
+const principalRoutes = require('./routes/principalRoutes'); 
 const path = require('path'); // For serving static files
-const uploadRoutes = require('./routes/uploadRoutes'); // Import the upload routes
+const uploadRoutes = require('./routes/uploadRoutes'); 
 const studentRoutes = require('./routes/studentRoutes'); 
-const termRoutes = require('./routes/termRoutes'); // Import term routes
+const termRoutes = require('./routes/termRoutes');
 const classRoutes = require('./routes/classRoutes');
 const classSubjectRoutes = require('./routes/classSubjectRoutes'); 
 const cors = require('cors');
 const morgan = require('morgan'); // For logging requests
+const studentClassRoutes = require('./routes/studentClassRoutes');
 const PORT = process.env.PORT || 5000;
 
 dotenv.config();
@@ -46,5 +47,6 @@ app.use('/api/student', studentRoutes);
 app.use('/api/terms', termRoutes); // Mount term routes
 app.use('/api/classes', classRoutes); // Mount class routes
 app.use('/api/class-subjects', classSubjectRoutes); 
+app.use('/api/student-class', studentClassRoutes);
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

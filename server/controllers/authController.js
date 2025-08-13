@@ -155,7 +155,6 @@ exports.register = asyncHandler(async (req, res) => {
                 parentContacts: parentContactIds, // Use parentContactIds from frontend
                 currentClass: classId, // Link student to their current class
                 academicYear: academicYear, // Store academic year on student for current context
-                admissionNumber: `ADM-${Date.now()}`, // Auto-generate a simple admission number
                 stream: stream || null, // Set stream from profileData or null
             });
 
@@ -252,23 +251,54 @@ exports.register = asyncHandler(async (req, res) => {
 exports.login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-        return res.status(400).json({ message: 'Please provide an email and password' });
+    try {
+        if (!email || !password) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Please provide both email and password' 
+            });
+        }
+
+        // Case-insensitive email search
+        const user = await User.findOne({ 
+            email: { $regex: new RegExp(`^${email}$`, 'i') } 
+        }).select('+password');
+
+        if (!user) {
+            return res.status(401).json({ 
+                success: false,
+                message: 'Invalid credentials - user not found' 
+            });
+        }
+
+        const isMatch = await user.matchPassword(password);
+        
+        if (!isMatch) {
+            return res.status(401).json({ 
+                success: false,
+                message: 'Invalid credentials - password mismatch' 
+            });
+        }
+
+        // Additional check for student profiles
+        if (user.role === 'student') {
+            const studentProfile = await Student.findById(user.profileId);
+            if (!studentProfile) {
+                console.warn(`Student profile missing for user ${user._id}`);
+                // Continue login but warn in logs
+            }
+        }
+
+        sendTokenResponse(user, 200, res);
+        
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Server error during login',
+            error: error.message 
+        });
     }
-
-    const user = await User.findOne({ email }).select('+password');
-
-    if (!user) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    const isMatch = await user.matchPassword(password);
-
-    if (!isMatch) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    sendTokenResponse(user, 200, res);
 });
 
 // @desc    Log user out / Clear cookie

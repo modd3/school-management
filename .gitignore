@@ -43,3 +43,7 @@ build/
 
 # Uploads or user-generated content (if any)
 uploads/
+# Temporary files
+app_architecture
+todo
+term_autogen_claude

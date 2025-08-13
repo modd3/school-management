@@ -24,6 +24,16 @@ export const getSubjects = async () => {
     return handleResponse(response);
 };
 
+// Fetch all subjects
+export const getTeacherSubjects = async () => {
+    const response = await fetch(`${API_BASE_URL}/teacher/subjects`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+    });
+    return handleResponse(response);
+};
+
 // Create a new subject
 export const createSubject = async (subjectData) => {
     const response = await fetch(`${API_BASE_URL}/admin/subjects`, {

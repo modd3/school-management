@@ -28,6 +28,8 @@ import TeacherResultsPage from './pages/teacher/TeacherResultsPage';
 import StudentExamReportPage from './pages/student/StudentExamReportPage';
 import StudentFinalReportPage from './pages/student/StudentFinalReportPage'; // Import the new StudentFinalReportPage
 import AssignClassSubject from './pages/admin/AssignClassSubjects';
+import ClassExamResultsPage from './pages/teacher/ClassExamResultsPage';
+import ClassFinalReportsPage from './pages/teacher/ClassFinalReportsPage';
 
 // A simple Protected Route component (make sure this is robust in your actual app)
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -189,7 +191,80 @@ function App() {
         />
 
         <Route
-        path="/student/report/:termId/:examType"
+  path="/admin/class-results/:classId/:termId/:examType"
+  element={
+    <ProtectedRoute allowedRoles={['admin']}>
+      <ClassExamResultsPage />
+    </ProtectedRoute>
+  }
+/>
+
+
+<Route
+  path="/admin/class-results"
+  element={
+    <ProtectedRoute allowedRoles={['admin']}>
+      <ClassExamResultsPage />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/admin/class-final-reports/:classId/:termId"
+  element={
+    <ProtectedRoute allowedRoles={['admin']}>
+      <ClassFinalReportsPage />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/admin/class-final-reports"
+  element={
+    <ProtectedRoute allowedRoles={['admin']}>
+      <ClassFinalReportsPage />
+    </ProtectedRoute>
+  }
+/>
+
+        <Route
+  path="/teacher/class-results/:classId/:termId/:examType"
+  element={
+    <ProtectedRoute allowedRoles={['teacher']}>
+      <ClassExamResultsPage />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/teacher/class-results"
+  element={
+    <ProtectedRoute allowedRoles={['teacher']}>
+      <ClassExamResultsPage />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/teacher/class-final-reports/:classId/:termId"
+  element={
+    <ProtectedRoute allowedRoles={['teacher']}>
+      <ClassFinalReportsPage />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/teacher/class-final-reports"
+  element={
+    <ProtectedRoute allowedRoles={['teacher']}>
+      <ClassFinalReportsPage />
+    </ProtectedRoute>
+  }
+/>
+
+        <Route
+        path="/student/results/:termId/:examType"
         element={<ProtectedRoute allowedRoles={['student']}>
           <StudentExamReportPage />
         </ProtectedRoute>}

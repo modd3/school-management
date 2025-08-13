@@ -61,6 +61,8 @@ const {
 } = require('../controllers/classSubjectController');
 // Class-Subject Management (Assignments)
 
+const {getClassExamResults, getClassFinalReports} = require('../controllers/resultController');
+
 // --- Apply Middleware ---
 router.use(protect);
 router.use(authorize(['admin'])); // Only admins can access these routes
@@ -133,6 +135,18 @@ router.get('/class-subjects/teacher/:teacherId', getSubjectsByTeacher);
 router.get('/class-subjects/class/:classId', getSubjectsByClass);
 router.post('/class-subjects/enroll', enrollStudentInSubject);
 router.get('/class-subjects/:classSubjectId/students', getStudentsInSubject);
+
+// 10. Results Management (Teacher's perspective)
+// Note: These routes are primarily for teachers, but admins can also access them
+// (e.g., to view results entered by teachers or manage results)
+
+router.get('/class-results/:classId/:termId/:examType',
+  getClassExamResults
+);
+
+router.get('/class-final-reports/:classId/:termId', 
+  getClassFinalReports
+);
 
 
 module.exports = router;
