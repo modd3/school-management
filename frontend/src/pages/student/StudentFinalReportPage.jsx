@@ -67,6 +67,17 @@ export default function StudentFinalReportPage() {
           .print-container { height: auto !important; min-height: auto !important; max-height: none !important; }
           .print\\:compact { margin: 0.1rem 0 !important; padding: 0 !important; }
           * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+          .print\\:student-info-grid {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 0.5rem !important;
+            margin-bottom: 0.5rem !important;
+          }
+          .print\\:student-info-col {
+            font-size: 8pt !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
         }
       `;
       document.head.appendChild(style);
@@ -82,7 +93,7 @@ export default function StudentFinalReportPage() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-   const [studentClass, setStudentClass] = useState(null);
+  const [studentClass, setStudentClass] = useState(null);
   const [academicYear, setAcademicYear] = useState('');
   const [classPosition, setClassPosition] = useState({ position: null, outOf: null });
 
@@ -104,7 +115,7 @@ export default function StudentFinalReportPage() {
   }, [params.termId]);
 
   // Fetch student class info when selectedTerm changes
- useEffect(() => {
+  useEffect(() => {
     async function fetchStudentClass() {
       if (!user || !selectedTerm) return;
       try {
@@ -172,7 +183,7 @@ export default function StudentFinalReportPage() {
     fetchFinalReport();
   }, [selectedTerm, user]);
 
-  // New effect to fetch student position directly
+  // Updated effect to fetch student position using class-position endpoint
   useEffect(() => {
     async function fetchStudentPosition() {
       if (!studentClass?.class?._id || !selectedTerm || !user) return;
@@ -220,7 +231,6 @@ export default function StudentFinalReportPage() {
   // Use studentClassInfo for class, stream, academicYear
   const className = studentClass?.class?.name || student.class || student.currentClass?.name || 'N/A';
   const stream = studentClass?.class?.stream?.[0] || student.stream || student.currentClass?.stream || 'N/A';
-
 
   const calculateStatistics = () => {
     if (!finalResults.length) return { totalPoints: 0, meanGradePoint: 0, overallGrade: '-' };
@@ -367,8 +377,8 @@ export default function StudentFinalReportPage() {
         </div>
 
         {/* Student Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 print:mb-2 print:text-xs print:break-avoid">
-          <div className="space-y-1 text-sm print:text-xs print:compact">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 print:student-info-grid print:break-avoid">
+          <div className="space-y-1 text-sm print:student-info-col print:compact">
             <div className="flex justify-between border-b border-gray-300 pb-1">
               <span className="font-semibold">Name:</span>
               <span>{student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || '-'}</span>
@@ -386,7 +396,7 @@ export default function StudentFinalReportPage() {
               <span>{stream || 'N/A'}</span>
             </div>
           </div>
-          <div className="space-y-1 text-sm print:text-xs print:compact">
+          <div className="space-y-1 text-sm print:student-info-col print:compact">
             <div className="flex justify-between border-b border-gray-300 pb-1">
               <span className="font-semibold">Term:</span>
               <span>
@@ -410,7 +420,7 @@ export default function StudentFinalReportPage() {
             <div className="flex justify-between border-b border-gray-300 pb-1">
               <span className="font-semibold">Class Position:</span>
               <span>
-                {classPosition.position ? `${classPosition.position} / ${classPosition.outOf}` : 'N/A'}
+                {classPosition.position ? `${classPosition.position} out of ${classPosition.outOf}` : 'N/A'}
               </span>
             </div>
             <div className="flex justify-between border-b border-gray-300 pb-1">

@@ -4,16 +4,9 @@ const router = express.Router();
 const { protect, authorize } = require('../middleware/authMiddleware');
 const {
     enterMarks,
-    getMarksForEntry,
-    addSubjectComment,
-    getStudentResultsForTerm,
-    getClassResultsForTerm,
-    publishTermResults,
     getStudentExamReport,
-    getClassBroadsheetByExamType
 } = require('../controllers/resultController');
 const { getMySubjects } = require('../controllers/teacherController');
-const { updateClassTeacherComment } = require('../controllers/reportCardController');
 const { getAllStudents } = require('../controllers/studentController');
 const { getAllSubjects } = require('../controllers/subjectController');
 const { getAllClasses } = require('../controllers/classController');
@@ -31,15 +24,6 @@ router.use(authorize(['teacher']));
 router.post('/results/enter', enterMarks);
 
 router.get('/my-subjects', getMySubjects);
-
-
-// Get all results for a student in a specific term
-router.get('/results/student/:studentId/term/:termId', getStudentResultsForTerm);
-
-// Get all results for a class in a specific term
-router.get('/results/class/:classId/term/:termId', getClassResultsForTerm);
-
-
 
 // Get all results entered by the logged-in teacher
 router.get('/results/entered-by-me', getResultsByTeacher);
