@@ -17,7 +17,6 @@ import ManageStudentsPage from './pages/admin/ManageStudentsPage';
 import ManageTeachersPage from './pages/admin/ManageTeachersPage';
 import ManageClassesPage from './pages/admin/ManageClassesPage';
 import ManageSubjectsPage from './pages/admin/ManageSubjectsPage';
-import ManageTermsPage from './pages/admin/ManageTermsPage'; 
 import EditUserPage from './pages/admin/EditUserPage'; 
 import EditStudentPage from './pages/admin/EditStudentPage'; // Import EditStudentPage
 // Add this import
@@ -134,14 +133,6 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <ManageSubjectsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/terms" // NEW ROUTE
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <ManageTermsPage />
                 </ProtectedRoute>
               }
             />

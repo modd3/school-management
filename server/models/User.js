@@ -25,6 +25,21 @@ const userSchema = new mongoose.Schema({
     }, // Stores the name of the referenced model (e.g., 'Teacher', 'Parent', 'Student')
     passwordResetToken: String,
     passwordResetExpires: Date,
+    permissions: {
+        academic: {
+            canEnterResults: { type: Boolean, default: false },
+            canEditResults: { type: Boolean, default: false },
+            canViewAllResults: { type: Boolean, default: false },
+            subjects: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Subject' }],
+            classes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Class' }]
+        },
+        administrative: {
+            canManageUsers: { type: Boolean, default: false },
+            canManageClasses: { type: Boolean, default: false },
+            canViewReports: { type: Boolean, default: false },
+            canExportData: { type: Boolean, default: false }
+        }
+    },
 }, { timestamps: true });
 
 // Hash password before saving

@@ -3,7 +3,7 @@ import { getClasses } from '../../api/classes';
 import { getSubjects } from '../../api/subjects';
 import { getTeachers } from '../../api/teachers';
 import { assignClassSubject } from '../../api/classSubjects';
-import { getTerms } from '../../api/terms';
+import { getAcademicCalendars } from '../../api/academicCalendar';
 import { toast } from 'react-toastify';
 
 export default function AssignClassSubject() {
@@ -11,18 +11,19 @@ export default function AssignClassSubject() {
     classId: '',
     subjectId: '',
     teacherId: '',
-    term: '',
+    term: '', // This will now be termNumber
     academicYear: '',
   });
 
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [teachers, setTeachers] = useState([]);
-  const [terms, setTerms] = useState([]);
+  const [calendars, setCalendars] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const currentYear = new Date().getFullYear().toString();
+    const currentYear = new Date().getFullYear();
+    const academicYearString = `${currentYear}/${currentYear + 1}`;
 
     const fetchData = async () => {
       try {
@@ -30,14 +31,15 @@ export default function AssignClassSubject() {
           getClasses(),
           getSubjects(),
           getTeachers(),
-          getTerms(),
+          getAcademicCalendars(),
         ]);
 
         setClasses(classRes.classes || []);
         setSubjects(subjectRes.subjects || []);
         setTeachers(teacherRes.teachers || []);
-        setTerms(termRes.terms || []);
-        setFormData((prev) => ({ ...prev, academicYear: currentYear }));
+        setCalendars(calendarRes || []);
+        // Set default academic year based on current date
+        setFormData((prev) => ({ ...prev, academicYear: academicYearString }));
       } catch (err) {
         toast.error('❌ Failed to load data');
       } finally {
@@ -48,9 +50,15 @@ export default function AssignClassSubject() {
     fetchData();
   }, []);
 
+  const selectedCalendar = calendars.find(c => c.academicYear === formData.academicYear);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const newFormData = { ...formData, [name]: value };
+    if (name === 'academicYear') {
+      newFormData.term = ''; // Reset term when year changes
+    }
+    setFormData(newFormData);
   };
 
   const handleSubmit = async (e) => {
@@ -87,7 +95,7 @@ export default function AssignClassSubject() {
         classId: '',
         subjectId: '',
         teacherId: '',
-        term: '',
+        term: '', // Reset term number
         academicYear: formData.academicYear, // retain auto-year
       });
     } catch (err) {
@@ -175,6 +183,25 @@ export default function AssignClassSubject() {
           </select>
         </div>
 
+        {/* Academic Year */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Academic Year
+          </label>
+          <select
+            name="academicYear"
+            value={formData.academicYear}
+            onChange={handleChange}
+            required
+            className="w-full border px-3 py-2 rounded"
+          >
+            <option value="">Select Academic Year</option>
+            {calendars.map((cal) => (
+              <option key={cal._id} value={cal.academicYear}>{cal.academicYear}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Select Term */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -188,29 +215,12 @@ export default function AssignClassSubject() {
   className="w-full border px-3 py-2 rounded"
 >
   <option value="">Select Term</option>
-  {terms.map((term) => (
-    <option key={term._id} value={term._id}>
-      {term.name}, {term.academicYear}
+  {selectedCalendar?.terms.map((term) => (
+    <option key={term.termNumber} value={term.termNumber}>
+      {term.name}
     </option>
   ))}
 </select>
-
-        </div>
-
-        {/* Academic Year */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Academic Year
-          </label>
-          <input
-            type="text"
-            name="academicYear"
-            value={formData.academicYear}
-            onChange={handleChange}
-            placeholder="Academic Year (e.g. 2025)"
-            className="w-full border px-3 py-2 rounded"
-            required
-          />
         </div>
 
         <button

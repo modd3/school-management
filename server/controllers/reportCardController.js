@@ -3,7 +3,7 @@ const ReportCard = require('../models/ReportCard');
 const Result = require('../models/Result');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
-const Term = require('../models/Term');
+const AcademicCalendar = require('../models/AcademicCalendar');
 const { calculateOverallGradeFromMeanPoints } = require('../utils/grading'); // Your second utility function
 
 // Helper function to calculate position (can be moved to utils/ranking.js)
@@ -44,25 +44,24 @@ const calculatePositions = (reportCards, type = 'class') => {
 
 
 // @desc    Generate/Publish Report Cards for a specific term
-// @route   POST /api/admin/reports/publish-term-results/:termId
+// @route   POST /api/admin/reports/publish-term-results
 // @access  Private (Admin)
 exports.publishTermResults = async (req, res) => {
-    const { termId } = req.params;
+    const { academicYear, termNumber } = req.body;
 
     try {
-        const term = await Term.findById(termId);
-        if (!term) {
-            return res.status(404).json({ message: 'Term not found' });
+        const calendar = await AcademicCalendar.findOne({ academicYear });
+        const term = calendar?.terms.find(t => t.termNumber === termNumber);
+        if (!calendar || !term) {
+            return res.status(404).json({ message: 'Academic year or term not found' });
         }
 
         // Get all students
         const students = await Student.find({ isActive: true }).populate('currentClass');
-
         const reportCardsToSave = [];
 
         for (const student of students) {
-            // Get all results for this student in the current term
-            const studentResults = await Result.find({ student: student._id, term: termId })
+            const studentResults = await Result.find({ student: student._id, academicYear, term: termNumber })
                                             .populate('subject')
                                             .select('marksObtained grade points comment');
 
@@ -96,7 +95,7 @@ exports.publishTermResults = async (req, res) => {
             }));
 
             // Check if report card already exists
-            let reportCard = await ReportCard.findOne({ student: student._id, term: termId });
+            let reportCard = await ReportCard.findOne({ student: student._id, academicYear, term: termNumber });
 
             if (reportCard) {
                 // Update existing
@@ -112,7 +111,8 @@ exports.publishTermResults = async (req, res) => {
                 // Create new
                 reportCard = new ReportCard({
                     student: student._id,
-                    term: term._id,
+                    academicYear,
+                    term: termNumber,
                     results: formattedResults,
                     totalPoints,
                     meanGradePoint,
@@ -167,7 +167,7 @@ exports.publishTermResults = async (req, res) => {
         // Save positions back to DB
         await Promise.all(updatedReportCards.map(rc => rc.save()));
 
-        res.status(200).json({ message: `Report cards for term ${term.name} published and positions calculated successfully.` });
+        res.status(200).json({ message: `Report cards for ${academicYear} Term ${termNumber} published and positions calculated successfully.` });
 
     } catch (error) {
         console.error('Error publishing term results:', error);
@@ -178,8 +178,8 @@ exports.publishTermResults = async (req, res) => {
 // @desc    Get a specific student's report card for a term
 // @route   GET /api/parent/reportcard/:studentId/:termId
 // @access  Private (Parent, Teacher, Admin)
-exports.getStudentReportCard = async (req, res) => {
-    const { studentId, termId } = req.params;
+exports.getStudentReportCard = async (req, res) => { // NOTE: Route needs academicYear and termNumber
+    const { studentId, academicYear, termNumber } = req.params;
     const userId = req.user.profileId; // Assuming profileId contains parent/teacher/admin ID
 
     try {
@@ -197,15 +197,11 @@ exports.getStudentReportCard = async (req, res) => {
         }
         // Add similar logic for teachers if needed, or allow teachers to see all.
 
-        const reportCard = await ReportCard.findOne({ student: studentId, term: termId })
+        const reportCard = await ReportCard.findOne({ student: studentId, academicYear, term: termNumber })
             .populate({
                 path: 'student',
                 select: 'firstName lastName admissionNumber studentPhotoUrl currentClass stream',
                 populate: { path: 'currentClass', select: 'name' }
-            })
-            .populate({
-                path: 'term',
-                select: 'name academicYear startDate endDate'
             })
             .populate({
                 path: 'results.subject',
@@ -223,6 +219,9 @@ exports.getStudentReportCard = async (req, res) => {
              return res.status(403).json({ message: 'Report card not yet published.' });
         }
 
+        const calendar = await AcademicCalendar.findOne({ academicYear: reportCard.academicYear });
+        const termDetails = calendar?.terms.find(t => t.termNumber === reportCard.term);
+
 
         // Format the report card data to match the provided image
         const formattedReportCard = {
@@ -236,8 +235,8 @@ exports.getStudentReportCard = async (req, res) => {
                 name: `${reportCard.student.firstName} ${reportCard.student.lastName} ${reportCard.student.otherNames || ''}`,
                 admNo: reportCard.student.admissionNumber,
                 photoUrl: reportCard.student.studentPhotoUrl,
-                year: reportCard.term.academicYear,
-                term: reportCard.term.name,
+                year: reportCard.academicYear,
+                term: termDetails?.name || `Term ${reportCard.term}`,
                 class: reportCard.student.currentClass ? reportCard.student.currentClass.name : 'N/A',
                 stream: reportCard.student.stream || 'N/A'
             },

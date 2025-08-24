@@ -9,10 +9,12 @@ const parentRoutes = require('./routes/parentRoutes');
 const principalRoutes = require('./routes/principalRoutes'); 
 const path = require('path'); // For serving static files
 const uploadRoutes = require('./routes/uploadRoutes'); 
-const studentRoutes = require('./routes/studentRoutes'); 
-const termRoutes = require('./routes/termRoutes');
+const studentRoutes = require('./routes/studentRoutes');
 const classRoutes = require('./routes/classRoutes');
+
 const classSubjectRoutes = require('./routes/classSubjectRoutes'); 
+const academicCalendarRoutes = require('./routes/academicCalendarRoutes');
+
 const cors = require('cors');
 const morgan = require('morgan'); // For logging requests
 const studentClassRoutes = require('./routes/studentClassRoutes');
@@ -44,9 +46,9 @@ app.use('/api/parent', parentRoutes);
 app.use('/api/principal', principalRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/student', studentRoutes); 
-app.use('/api/terms', termRoutes); // Mount term routes
 app.use('/api/classes', classRoutes); // Mount class routes
 app.use('/api/class-subjects', classSubjectRoutes); 
 app.use('/api/student-class', studentClassRoutes);
+app.use('/api/academic-calendars', academicCalendarRoutes);
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

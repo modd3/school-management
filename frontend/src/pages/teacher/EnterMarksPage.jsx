@@ -1,427 +1,213 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { FaClipboardList } from 'react-icons/fa'; // Import icon for UI
-import {
-  submitResult, // Renamed from submitResult in results.js API
-  getResultsByTeacher // To fetch existing results for pre-filling
-} from '../../api/results'; // Ensure this path is correct for your results API functions
-import { getMyClassSubjects, getStudentsInSubject } from '../../api/classSubjects'; // Ensure these paths are correct
+import { FaClipboardList } from 'react-icons/fa';
+import { enterMarks, getResultsByTeacher } from '../../api/results';
+import { getMyClassSubjects, getStudentsInSubject } from '../../api/classSubjects';
+import { getAcademicCalendars } from '../../api/academicCalendar'; // New API call
 import { toast } from 'react-toastify';
 import Spinner from '../../components/Spinner';
-import { getTerms } from '../../api/terms'; // Ensure this path is correct
 import { useAuth } from '../../context/AuthContext';
 
 export default function EnterMarksPage() {
-  const { user } = useAuth(); // Get logged-in user from AuthContext
+  const { user } = useAuth();
 
-  const [academicYear, setAcademicYear] = useState(new Date().getFullYear().toString());
-  const [term, setTerm] = useState('');
+  // State aligned with new backend structure
+  const [academicYears, setAcademicYears] = useState([]);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [activeAcademicYear, setActiveAcademicYear] = useState(null);
+  const [selectedTerm, setSelectedTerm] = useState(''); // Now stores term number e.g., 1, 2, 3
   const [classSubjects, setClassSubjects] = useState([]);
-  const [selectedClassSubject, setSelectedClassSubject] = useState('');
+  const [selectedClassSubject, setSelectedClassSubject] = useState(null);
   const [students, setStudents] = useState([]);
-  // `marks` state now stores { studentId: { marksObtained, outOf, comment, percentage, grade, points } }
-  const [marks, setMarks] = useState({});
-  const [examType, setExamType] = useState('');
+  const [marks, setMarks] = useState({}); // { studentId: { assessments: { cat1: ..., cat2: ... }, teacherComments: '' } }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [terms, setTerms] = useState([]);
-  const [examTypes] = useState(['Opener', 'Midterm', 'Endterm']); // Fixed exam types
 
-  // Effect 1: Load terms and then class subjects for the teacher
+  // Effect 1: Load academic calendars
   useEffect(() => {
-    async function initializeData() {
-      setLoading(true);
-      setError(null);
-
+    async function loadCalendars() {
       try {
-        // Step 1: Load Terms
-        const termsRes = await getTerms();
-        setTerms(termsRes.terms || []);
-
-        let currentTermId = term;
-        if (termsRes.terms && termsRes.terms.length > 0 && !term) {
-          currentTermId = termsRes.terms[0]._id;
-          setTerm(currentTermId);
-        }
-
-        // Step 2: Load Class Subjects (only if user and term are available)
-        if (user?._id && currentTermId && academicYear) {
-          // getMyClassSubjects expects a query string like "term=ID&academicYear=YEAR"
-          const classSubjectsRes = await getMyClassSubjects(currentTermId, academicYear);
-          const fetchedClassSubjects = classSubjectsRes.classSubjects || [];
-          setClassSubjects(fetchedClassSubjects);
-
-          // If there's a selected class subject that's no longer valid, or no subject selected,
-          // default to the first available class subject.
-          if (fetchedClassSubjects.length > 0) {
-            if (!fetchedClassSubjects.some(cs => cs._id === selectedClassSubject)) {
-              setSelectedClassSubject(fetchedClassSubjects[0]._id);
-            }
-          } else {
-            setSelectedClassSubject(''); // Clear if no subjects found
+        const calendars = await getAcademicCalendars();
+        setAcademicYears(calendars);
+        const currentYear = new Date().getFullYear().toString();
+        const activeYear = calendars.find(c => c.academicYear.startsWith(currentYear) && c.status === 'active');
+        if (activeYear) {
+          setActiveAcademicYear(activeYear);
+          setSelectedYear(activeYear.academicYear);
+          if (activeYear.terms.length > 0) {
+            setSelectedTerm(activeYear.terms[0].termNumber);
           }
-        } else {
-          setClassSubjects([]);
-          setSelectedClassSubject('');
         }
-
       } catch (err) {
-        toast.error(err.message || 'Failed to initialize data (terms or class subjects)');
-        setError(err.message || 'Failed to initialize data');
+        toast.error(err.message || 'Failed to load academic calendars');
+        setError(err.message);
+      }
+    }
+    loadCalendars();
+  }, []);
+
+  // Effect 2: Load class subjects when year or term changes
+  useEffect(() => {
+    if (!user?._id || !selectedYear || !selectedTerm) return;
+
+    async function loadClassSubjects() {
+      setLoading(true);
+      try {
+        const res = await getMyClassSubjects(selectedYear, selectedTerm);
+        setClassSubjects(res.classSubjects || []);
+        if (res.classSubjects?.length > 0) {
+          setSelectedClassSubject(res.classSubjects[0]);
+        } else {
+          setSelectedClassSubject(null);
+        }
+      } catch (err) {
+        toast.error(err.message || 'Failed to load class subjects');
       } finally {
         setLoading(false);
       }
     }
+    loadClassSubjects();
+  }, [user?._id, selectedYear, selectedTerm]);
 
-    if (user?._id) { // Only run this effect if user is loaded
-      initializeData();
-    }
-  }, [user?._id, academicYear, term]); // Re-run when user ID, academic year, or term changes
-
-  // Effect 2: Load students and their existing marks when selectedClassSubject or examType changes
+  // Effect 3: Load students and their marks when class-subject changes
   useEffect(() => {
-    async function loadStudentsAndMarks() {
-      // Only proceed if we have a selected class subject, academic year, and exam type
-      if (!selectedClassSubject || !academicYear || !examType) {
-        setStudents([]);
-        setMarks({}); // Clear marks if prerequisites not met
-        return;
-      }
+    if (!selectedClassSubject) {
+      setStudents([]);
+      setMarks({});
+      return;
+    }
 
+    async function loadStudentsAndMarks() {
       setLoading(true);
-      setError(null);
       try {
-        // Fetch students for the selected class subject
-        // getStudentsInSubject expects classSubjectId and academicYear as parameters
-        const studentsRes = await getStudentsInSubject(selectedClassSubject, academicYear);
+        const studentsRes = await getStudentsInSubject(selectedClassSubject._id);
         const fetchedStudents = studentsRes.students || [];
         setStudents(fetchedStudents);
 
-        // Fetch existing marks for these students for the selected exam type, term, and academic year
-        // getResultsByTeacher expects a query string like "subjectId=ID&termId=ID&academicYear=YEAR&examType=TYPE"
-        const existingResultsRes = await getResultsByTeacher(
-          `subjectId=${selectedClassSubject}&termId=${term}&academicYear=${academicYear}&examType=${examType}`
-        );
-        const existingResults = existingResultsRes.results || [];
+        // Fetch all results for this term and pre-fill
+        const resultsRes = await getResultsByTeacher(`classSubjectId=${selectedClassSubject._id}&academicYear=${selectedYear}&term=${selectedTerm}`);
+        const existingResults = resultsRes.results || [];
 
-        // Pre-fill marks state with existing data
         const initialMarks = {};
         fetchedStudents.forEach(student => {
-          const existingMark = existingResults.find(
-            // Check both populated student object or just student ID
-            result => result.student?._id === student._id || result.student === student._id
-          );
+          const result = existingResults.find(r => r.student._id === student._id);
           initialMarks[student._id] = {
-            marksObtained: existingMark ? existingMark.marksObtained : '',
-            outOf: existingMark ? existingMark.outOf : '',
-            comment: existingMark ? existingMark.comment : '',
-            percentage: existingMark ? existingMark.percentage : null,
-            grade: existingMark ? existingMark.grade : null,
-            points: existingMark ? existingMark.points : null,
+            assessments: {
+              cat1: { marks: result?.assessments?.cat1?.marks || '' },
+              cat2: { marks: result?.assessments?.cat2?.marks || '' },
+              endterm: { marks: result?.assessments?.endterm?.marks || '' },
+            },
+            teacherComments: result?.teacherComments || ''
           };
         });
         setMarks(initialMarks);
 
       } catch (err) {
-        toast.error(err.message || 'Failed to load students or existing marks');
-        setError(err.message || 'Failed to load students or existing marks');
-        setStudents([]);
-        setMarks({});
+        toast.error(err.message || 'Failed to load students or marks');
       } finally {
         setLoading(false);
       }
     }
-    // Re-run this effect when selectedClassSubject, academicYear, examType, or term changes
-    // User is also a dependency because getTeacherResults uses user._id on the backend implicitly.
     loadStudentsAndMarks();
-  }, [selectedClassSubject, academicYear, examType, term, user]);
+  }, [selectedClassSubject, selectedYear, selectedTerm]);
 
-  // Handle changes in marks input fields
-  const handleChange = useCallback((studentId, field, value) => {
-    setMarks(prev => {
-      const updatedStudentMarks = {
+  const handleMarksChange = useCallback((studentId, assessment, value) => {
+    setMarks(prev => ({
+      ...prev,
+      [studentId]: {
         ...prev[studentId],
-        [field]: value,
-      };
-
-      // Frontend calculation for immediate display (backend will re-calculate and store)
-      const marksObtained = Number(updatedStudentMarks.marksObtained);
-      const outOf = Number(updatedStudentMarks.outOf);
-
-      if (!isNaN(marksObtained) && !isNaN(outOf) && outOf > 0) {
-        const percentage = (marksObtained / outOf) * 100;
-        // Simplified frontend grading for display. Backend handles the actual grading logic.
-        let displayGrade = 'N/A';
-        if (percentage >= 80) displayGrade = 'A';
-        else if (percentage >= 75 && percentage <= 79.99) displayGrade = 'A-';
-        else if (percentage >= 70 && percentage <= 74.99) displayGrade = 'B+';
-        else if (percentage >= 65 && percentage <= 69.99) displayGrade = 'B';
-        else if (percentage >= 60 && percentage <= 64.99) displayGrade = 'B-';
-        else if (percentage >= 55 && percentage <= 59.99) displayGrade = 'C+';
-        else if (percentage >= 50 && percentage <= 54.99) displayGrade = 'C';
-        else if (percentage >= 45 && percentage <= 49.99) displayGrade = 'C-';
-        else if (percentage >= 40 && percentage <= 44.99) displayGrade = 'D+';
-        else if (percentage >= 35 && percentage <= 39.99) displayGrade = 'D';
-        else if (percentage >= 30 && percentage <= 34.99) displayGrade = 'D-';
-        else displayGrade = 'E';
-
-        updatedStudentMarks.percentage = percentage;
-        updatedStudentMarks.grade = displayGrade;
-        // Points are not calculated on frontend as they are backend-specific
-        // Comment is not auto-generated on frontend to allow manual input
-      } else {
-        updatedStudentMarks.percentage = null;
-        updatedStudentMarks.grade = null;
+        assessments: {
+          ...prev[studentId].assessments,
+          [assessment]: { ...prev[studentId].assessments[assessment], marks: value }
+        }
       }
-
-      return {
-        ...prev,
-        [studentId]: updatedStudentMarks,
-      };
-    });
+    }));
   }, []);
 
+  const handleCommentChange = useCallback((studentId, value) => {
+    setMarks(prev => ({
+      ...prev,
+      [studentId]: { ...prev[studentId], teacherComments: value }
+    }));
+  }, []);
 
-  // Handle saving marks for a single student
   const handleSave = async (studentId) => {
     const studentMarks = marks[studentId];
-
-    // Frontend validation for required fields
-    if (!studentMarks || studentMarks.marksObtained === '' || studentMarks.outOf === '') {
-      toast.error('Please enter both marks obtained and total marks.');
+    if (!studentMarks || !selectedClassSubject) {
+      toast.error('Cannot save, data is missing.');
       return;
     }
 
-    if (!selectedClassSubject || !examType || !term || !academicYear) {
-      toast.error('Please select Class & Subject, Exam Type, Term, and Academic Year.');
-      return;
-    }
+    const maxMarks = selectedClassSubject.maxMarks;
 
-    const marksObtained = Number(studentMarks.marksObtained);
-    const outOf = Number(studentMarks.outOf);
+    const resultData = {
+      studentId: studentId,
+      classSubjectId: selectedClassSubject._id,
+      academicYear: selectedYear,
+      term: selectedTerm,
+      assessments: {
+        cat1: { marks: Number(studentMarks.assessments.cat1.marks), maxMarks: maxMarks.cat1 },
+        cat2: { marks: Number(studentMarks.assessments.cat2.marks), maxMarks: maxMarks.cat2 },
+        endterm: { marks: Number(studentMarks.assessments.endterm.marks), maxMarks: maxMarks.endterm },
+      },
+      teacherComments: studentMarks.teacherComments
+    };
 
-    if (marksObtained < 0 || outOf <= 0) {
-      toast.error('Marks must be non-negative. "Out Of" must be greater than 0.');
-      return;
-    }
-    if (marksObtained > outOf) {
-      toast.error('Marks obtained cannot be greater than "Out Of" marks.');
-      return;
-    }
-
-    setLoading(true); // Set loading state for the save operation
-    setError(null);
+    setLoading(true);
     try {
-      // Prepare data that matches the backend API expectations for `submitMarks`
-      const resultData = {
-        studentId: studentId,                  // Student ID
-        classSubjectId: selectedClassSubject,  // ID of the ClassSubject assignment
-        termId: term,                         // Term ID
-        academicYear: academicYear,           // Academic Year
-        examType: examType,                 // Exam Type
-        marksObtained: marksObtained,         // Marks obtained
-        outOf: outOf,                         // Total marks
-        comment: studentMarks.comment || '',  // Optional comment (will be overwritten by backend if empty)
-        enteredBy: user._id,                 // The logged-in teacher's user ID
-      };
-console.log(JSON.stringify(resultData));
-      await submitResult(resultData); // Call the submitMarks API function
+      await enterMarks(resultData);
       toast.success('Marks saved successfully!');
-
-      // After saving, re-fetch students and marks to ensure the table reflects the latest data
-      // including backend-calculated grade, percentage, and comment.
-      // This re-triggers Effect 2.
-      // We explicitly call loadStudentsAndMarks to refresh the data after a successful save.
-     // await loadStudentsAndMarks();
-
     } catch (err) {
-      console.error('Failed to save marks:', err);
       toast.error(err.message || 'Failed to save marks.');
-      setError(err.message || 'Failed to save marks.');
     } finally {
-      setLoading(false); // Reset loading state
+      setLoading(false);
     }
   };
 
-  // Render loading spinner or error message if global loading/error
-  if (loading && (!terms.length || !classSubjects.length || !students.length)) {
-    return <Spinner message="Loading data..." />;
-  }
-
-  if (error) {
-    return (
-      <div className="text-red-600 p-4 bg-red-50 rounded-lg border border-red-200">
-        Error: {error}
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-5xl mx-auto p-6 bg-white shadow-xl rounded-lg mt-8">
-      <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-        <FaClipboardList className="text-blue-600" /> Enter Marks
-      </h2>
+    <div className="max-w-6xl mx-auto p-6 bg-white shadow-xl rounded-lg mt-8">
+      <h2 className="text-3xl font-bold text-gray-800 mb-6">Enter Marks</h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        <div className="flex flex-col">
-          <label htmlFor="academicYear" className="text-sm font-medium text-gray-700 mb-1">Academic Year</label>
-          <input
-            type="text"
-            id="academicYear"
-            value={academicYear}
-            onChange={e => setAcademicYear(e.target.value)}
-            className="border px-3 py-2 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            placeholder="e.g., 2025"
-          />
-        </div>
-        <div className="flex flex-col">
-          <label htmlFor="termSelect" className="text-sm font-medium text-gray-700 mb-1">Term</label>
-          <select
-            id="termSelect"
-            value={term}
-            onChange={e => setTerm(e.target.value)}
-            className="border px-3 py-2 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Select Term</option>
-            {terms.map(t => (
-              <option key={t._id} value={t._id}>{t.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col">
-          <label htmlFor="examTypeSelect" className="text-sm font-medium text-gray-700 mb-1">Exam Type</label>
-          <select
-            id="examTypeSelect"
-            value={examType}
-            onChange={e => setExamType(e.target.value)}
-            className="border px-3 py-2 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Select Exam Type</option>
-            {examTypes.map(type => (
-              <option key={type} value={type}>{type}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="mb-6 flex flex-col">
-        <label htmlFor="classSubjectSelect" className="text-sm font-medium text-gray-700 mb-1">Class & Subject</label>
-        <select
-          id="classSubjectSelect"
-          value={selectedClassSubject}
-          onChange={e => setSelectedClassSubject(e.target.value)}
-          className="border px-3 py-2 rounded-md focus:ring-blue-500 focus:border-blue-500"
-        >
+      {/* Filters */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <select onChange={e => setSelectedYear(e.target.value)} value={selectedYear}>
+          {academicYears.map(y => <option key={y._id} value={y.academicYear}>{y.academicYear}</option>)}
+        </select>
+        <select onChange={e => setSelectedTerm(Number(e.target.value))} value={selectedTerm}>
+          {activeAcademicYear?.terms.map(t => <option key={t.termNumber} value={t.termNumber}>{t.name}</option>)}
+        </select>
+        <select onChange={e => setSelectedClassSubject(classSubjects.find(cs => cs._id === e.target.value))} value={selectedClassSubject?._id || ''}>
           <option value="">Select Class & Subject</option>
-          {classSubjects.map(cs => (
-            <option key={cs._id} value={cs._id}>
-              {cs.class?.name} - {cs.subject?.name} ({cs.term?.name} {cs.academicYear})
-            </option>
-          ))}
+          {classSubjects.map(cs => <option key={cs._id} value={cs._id}>{cs.class.name} - {cs.subject.name}</option>)}
         </select>
       </div>
 
-      {/* Conditional messages for user guidance */}
-      {!term || !academicYear ? (
-        <div className="bg-blue-50 border-l-4 border-blue-400 text-blue-800 p-4 mb-4 rounded">
-          <p className="font-bold">Setup Required</p>
-          <p>Please select an academic year and term to view your assigned classes and subjects.</p>
-        </div>
-      ) : classSubjects.length === 0 && !loading && !error ? (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 p-4 mb-4 rounded">
-          <p className="font-bold">No Class Subjects Assigned</p>
-          <p>You don't have any class subjects assigned for the selected term and academic year. Please contact the administrator.</p>
-        </div>
-      ) : !selectedClassSubject ? (
-        <div className="bg-blue-50 border-l-4 border-blue-400 text-blue-800 p-4 mb-4 rounded">
-          <p className="font-bold">Select Class & Subject</p>
-          <p>Please select a class and subject from the dropdown above.</p>
-        </div>
-      ) : !examType ? (
-        <div className="bg-blue-50 border-l-4 border-blue-400 text-blue-800 p-4 mb-4 rounded">
-          <p className="font-bold">Select Exam Type</p>
-          <p>Please select an exam type to view students and enter marks.</p>
-        </div>
-      ) : students.length === 0 && !loading && !error ? (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 p-4 mb-4 rounded">
-          <p className="font-bold">No Students Found</p>
-          <p>No students are currently enrolled in this class and subject for the selected academic year. Please ensure students are enrolled via the Admin panel.</p>
-        </div>
-      ) : null}
+      {loading && <Spinner />}
 
-      {students.length > 0 && selectedClassSubject && examType && (
-        <div className="overflow-x-auto rounded-lg shadow-md border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-blue-50">
+      {/* Marks Table */}
+      {students.length > 0 && selectedClassSubject && (
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Student</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Marks Obtained</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Total Marks</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Percentage</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Grade</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Action</th>
+                <th>Student</th>
+                <th>CAT 1 (/{selectedClassSubject.maxMarks.cat1})</th>
+                <th>CAT 2 (/{selectedClassSubject.maxMarks.cat2})</th>
+                <th>End Term (/{selectedClassSubject.maxMarks.endterm})</th>
+                <th>Comments</th>
+                <th>Action</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody>
               {students.map(student => {
-                const studentMarks = marks[student._id] || {};
-                const percentage = studentMarks.percentage !== null ? studentMarks.percentage : 'N/A';
-                const grade = studentMarks.grade || 'N/A';
-                
+                const studentMarks = marks[student._id] || { assessments: { cat1:{}, cat2:{}, endterm:{} }, teacherComments: '' };
                 return (
-                  <tr key={student._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {student.firstName} {student.lastName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <input
-                        type="number"
-                        min="0"
-                        value={studentMarks.marksObtained || ''}
-                        onChange={e => handleChange(student._id, 'marksObtained', e.target.value)}
-                        className="w-24 border border-gray-300 p-2 rounded focus:border-blue-500 focus:outline-none text-center"
-                        placeholder="0"
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <input
-                        type="number"
-                        min="1"
-                        value={studentMarks.outOf || ''}
-                        onChange={e => handleChange(student._id, 'outOf', e.target.value)}
-                        className="w-24 border border-gray-300 p-2 rounded focus:border-blue-500 focus:outline-none text-center"
-                        placeholder="100"
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        percentage >= 80 ? 'bg-green-100 text-green-800' :
-                        percentage >= 60 ? 'bg-yellow-100 text-yellow-800' :
-                        percentage >= 40 ? 'bg-orange-100 text-orange-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {Number(percentage).toFixed(2)}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        grade.startsWith('A') ? 'bg-green-100 text-green-800' :
-                        grade.startsWith('B') ? 'bg-blue-100 text-blue-800' :
-                        grade.startsWith('C') ? 'bg-yellow-100 text-yellow-800' :
-                        grade.startsWith('D') ? 'bg-orange-100 text-orange-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {grade}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleSave(student._id)}
-                        disabled={loading || !studentMarks.marksObtained || !studentMarks.outOf}
-                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
-                      >
-                        Save Marks
-                      </button>
-                    </td>
+                  <tr key={student._id}>
+                    <td>{student.firstName} {student.lastName}</td>
+                    <td><input type="number" value={studentMarks.assessments.cat1.marks} onChange={e => handleMarksChange(student._id, 'cat1', e.target.value)} className="w-24 p-2" /></td>
+                    <td><input type="number" value={studentMarks.assessments.cat2.marks} onChange={e => handleMarksChange(student._id, 'cat2', e.target.value)} className="w-24 p-2" /></td>
+                    <td><input type="number" value={studentMarks.assessments.endterm.marks} onChange={e => handleMarksChange(student._id, 'endterm', e.targe.value)} className="w-24 p-2" /></td>
+                    <td><input type="text" value={studentMarks.teacherComments} onChange={e => handleCommentChange(student._id, e.target.value)} className="w-full p-2" /></td>
+                    <td><button onClick={() => handleSave(student._id)} className="bg-blue-600 text-white px-4 py-2 rounded">Save</button></td>
                   </tr>
                 );
               })}

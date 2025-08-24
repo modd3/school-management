@@ -9,7 +9,6 @@ const StudentClass = require('../models/StudentClass');
 const User = require('../models/User'); // Needed for population or direct user interaction
 const Class = require('../models/Class'); // Needed for population
 const Subject = require('../models/Subject'); // Needed for population
-const Term = require('../models/Term'); // Needed for population
 
 
 // @desc    Assign a subject to a teacher in a class
@@ -116,7 +115,6 @@ exports.getMyClassSubjects = asyncHandler(async (req, res) => {
   const classSubjects = await ClassSubject.find(filter)
     .populate('class', 'name') // Populate 'name' field from Class model
     .populate('subject', 'name code category group') // <-- ADDED 'category' and 'group' here
-    .populate('term', 'name') // Populate 'name' from Term model
     .lean(); // Use .lean() for faster queries if you don't need Mongoose documents
 
   if (!classSubjects || classSubjects.length === 0) {
@@ -147,7 +145,6 @@ exports.getSubjectsByTeacher = asyncHandler(async (req, res) => {
   const results = await ClassSubject.find(filter)
     .populate('class', 'name')
     .populate('subject', 'name code category group') // <-- ADDED 'category' and 'group' here
-    .populate('term', 'name')
     .lean();
 
   res.status(200).json({ success: true, count: results.length, classSubjects: results });
@@ -169,7 +166,6 @@ exports.getSubjectsByClass = asyncHandler(async (req, res) => {
   const results = await ClassSubject.find(filter)
     .populate('subject', 'name code category group') // <-- ADDED 'category' and 'group' here
     .populate('teacher', 'firstName lastName email')
-    .populate('term', 'name')
     .lean();
 
   res.status(200).json({ success: true, count: results.length, classSubjects: results });

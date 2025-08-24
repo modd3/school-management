@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getTerms, getTeacherTerms } from '../api/terms';
+import { getAcademicCalendars } from '../api/academicCalendar';
 import { getClasses, getTeacherClasses } from '../api/classes';
 import { useNavigate, Link } from 'react-router-dom';
 import {
@@ -13,8 +13,8 @@ import DashboardSection from '../components/DashboardSection';
 
 const DashboardPage = () => {
   const { user, logout } = useAuth();
-  const [termId, setTermId] = useState('');
-  const [terms, setTerms] = useState([]);
+  const [activeCalendar, setActiveCalendar] = useState(null);
+  const [currentTerm, setCurrentTerm] = useState(null);
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -23,37 +23,31 @@ const DashboardPage = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        let termsRes, classesRes;
+        let calendarsRes, classesRes;
         
         if (user.role === 'admin') {
-          [termsRes, classesRes] = await Promise.all([
-            getTerms(),
+          [calendarsRes, classesRes] = await Promise.all([
+            getAcademicCalendars(),
             getClasses()
           ]);
         } else if (user.role === 'teacher') {
-          [termsRes, classesRes] = await Promise.all([
-            getTeacherTerms(),
+          [calendarsRes, classesRes] = await Promise.all([
+            getAcademicCalendars(), // Teachers also need calendars
             getTeacherClasses()
           ]);
         } else {
-          termsRes = await getTerms();
+          calendarsRes = await getAcademicCalendars();
           classesRes = { classes: [] };
         }
         
-        setTerms(termsRes.terms || []);
+        const activeCal = calendarsRes?.find(c => c.status === 'active');
+        setActiveCalendar(activeCal);
         setClasses(classesRes.classes || []);
         
-        const today = new Date();
-        const currentTerm = termsRes.terms?.find(term => {
-          const startDate = new Date(term.startDate);
-          const endDate = new Date(term.endDate);
-          return today >= startDate && today <= endDate;
-        });
-        
-        if (currentTerm) {
-          setTermId(currentTerm._id);
-        } else if (termsRes.terms?.length > 0) {
-          setTermId(termsRes.terms[0]._id);
+        if (activeCal) {
+          const today = new Date();
+          const term = activeCal.terms.find(t => today >= new Date(t.startDate) && today <= new Date(t.endDate));
+          setCurrentTerm(term || activeCal.terms[0]);
         }
       } catch (err) {
         console.error('Failed to fetch data', err);
@@ -71,8 +65,8 @@ const DashboardPage = () => {
     await logout();
   };
 
-  const getTeacherClassId = () => {
-    if (user.role !== 'teacher' || user.teacherType !== 'class_teacher') return null;
+  const getTeacherClassId = () => { // This logic might need adjustment based on user profile population
+    if (user.role !== 'teacher' || user.profile?.teacherType !== 'class_teacher') return null;
     
     // Prioritize a direct ID from the user object if available
     if (user.assignedClassId) return user.assignedClassId;
@@ -80,7 +74,7 @@ const DashboardPage = () => {
 
     // As a fallback, find the class they are the teacher of from the classes list
     if (classes && classes.length > 0) {
-        const teacherClass = classes.find(cls => cls.classTeacher === user.profileId || cls.classTeacher === user._id);
+        const teacherClass = classes.find(cls => cls.classTeacher === user.profileId);
         if (teacherClass) return teacherClass._id;
     }
     
@@ -88,8 +82,8 @@ const DashboardPage = () => {
   }
 
   const handleViewClassResults = (examType = 'Opener') => {
-    if (!termId) {
-      alert('Please wait for the current term to load.');
+    if (!activeCalendar || !currentTerm) {
+      alert('Please wait for the active academic calendar and term to load.');
       return;
     }
     
@@ -98,11 +92,11 @@ const DashboardPage = () => {
       return;
     }
     
-    if (user.role === 'teacher') {
-        if (user.teacherType === 'class_teacher') {
+    if (user.role === 'teacher' && user.profile) {
+        if (user.profile.teacherType === 'class_teacher') {
             const classId = getTeacherClassId();
             if (classId) {
-                navigate(`/teacher/class-results/${classId}/${termId}/${examType}`);
+                navigate(`/teacher/class-results/${classId}/${activeCalendar.academicYear}/${currentTerm.termNumber}/${examType}`);
             } else {
                  // Navigate to the selection page if no specific class is found
                 navigate('/teacher/class-results');
@@ -115,8 +109,8 @@ const DashboardPage = () => {
   };
 
   const handleViewFinalReports = () => {
-    if (!termId) {
-      alert('Please wait for the current term to load.');
+    if (!activeCalendar || !currentTerm) {
+      alert('Please wait for the active academic calendar and term to load.');
       return;
     }
     
@@ -125,11 +119,11 @@ const DashboardPage = () => {
       return;
     }
     
-    if (user.role === 'teacher') {
-        if (user.teacherType === 'class_teacher') {
+    if (user.role === 'teacher' && user.profile) {
+        if (user.profile.teacherType === 'class_teacher') {
             const classId = getTeacherClassId();
             if (classId) {
-                navigate(`/teacher/class-final-reports/${classId}/${termId}`);
+                navigate(`/teacher/class-final-reports/${classId}/${activeCalendar.academicYear}/${currentTerm.termNumber}`);
             } else {
                 navigate('/teacher/class-final-reports');
             }
@@ -142,35 +136,35 @@ const DashboardPage = () => {
 
 
   const handleViewStudentResults = (examType) => {
-    if (!termId) {
-      alert('Please ensure terms are loaded');
+    if (!activeCalendar || !currentTerm) {
+      alert('Please ensure academic calendar is loaded');
       return;
     }
-    navigate(`/student/results/${termId}/${examType}`);
+    navigate(`/student/report/${activeCalendar.academicYear}/${currentTerm.termNumber}`);
   };
 
   const handleViewStudentFinalReport = () => {
-    if (!termId) {
-      alert('Please ensure terms are loaded');
+    if (!activeCalendar || !currentTerm) {
+      alert('Please ensure academic calendar is loaded');
       return;
     }
-    navigate(`/student/final-report/${termId}`);
+    navigate(`/student/final-report/${activeCalendar.academicYear}/${currentTerm.termNumber}`);
   };
 
   const handleViewChildResults = (examType) => {
-    if (!termId) {
-      alert('Please ensure terms are loaded');
+    if (!activeCalendar || !currentTerm) {
+      alert('Please ensure academic calendar is loaded');
       return;
     }
-    navigate(`/parent/child-results/${termId}/${examType}`);
+    navigate(`/parent/child-results/${activeCalendar.academicYear}/${currentTerm.termNumber}`);
   };
 
   const handleViewChildFinalReport = () => {
-    if (!termId) {
-      alert('Please ensure terms are loaded');
+    if (!activeCalendar || !currentTerm) {
+      alert('Please ensure academic calendar is loaded');
       return;
     }
-    navigate(`/parent/child-final-report/${termId}`);
+    navigate(`/parent/child-final-report/${activeCalendar.academicYear}/${currentTerm.termNumber}`);
   };
 
   if (loading) {
@@ -193,7 +187,6 @@ const DashboardPage = () => {
       { to: '/admin/classes', label: 'Manage Classes', icon: <FaBookOpen /> },
       { to: '/admin/subjects', label: 'Manage Subjects', icon: <FaBookOpen /> },
       { to: '/admin/assign-class-subject', label: 'Assign Class Subjects', icon: <FaClipboardList /> },
-      { to: '/admin/terms', label: 'Manage Terms', icon: <FaCalendarAlt /> },
       { 
         onClick: () => handleViewClassResults(), 
         label: 'View Class Results', 
@@ -230,7 +223,7 @@ const DashboardPage = () => {
         { to: '/teacher/results/entered-by-me', label: 'My Entered Results', icon: <FaListAlt /> },
     ];
     
-    if (user.teacherType === 'class_teacher') {
+    if (user.profile?.teacherType === 'class_teacher') {
         title = 'Class Teacher Panel';
         teacherLinks = [
             ...commonTeacherLinks,
@@ -381,11 +374,11 @@ const DashboardPage = () => {
         )}
 
         {/* Current Term Info */}
-        {termId && terms.length > 0 && (
+        {activeCalendar && currentTerm && (
           <div className="bg-blue-50 rounded-xl border border-blue-200 p-4">
             <h3 className="text-sm font-medium text-blue-800 mb-2">Current Academic Term</h3>
             <p className="text-blue-700">
-              {terms.find(t => t._id === termId)?.name || 'Unknown Term'}
+              {currentTerm.name} ({activeCalendar.academicYear})
             </p>
           </div>
         )}

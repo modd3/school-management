@@ -1,6 +1,5 @@
 const StudentClass = require('../models/StudentClass');
 const Class = require('../models/Class');
-const Term = require('../models/Term');
 
 exports.getStudentClassInfo = async (req, res) => {
   const { studentId, termId } = req.query;

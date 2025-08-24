@@ -4,14 +4,13 @@ const router = express.Router();
 const { protect, authorize } = require('../middleware/authMiddleware');
 const {
     enterMarks,
-    getStudentExamReport,
+    getStudentTermReport, // Use the existing, now flexible, controller
 } = require('../controllers/resultController');
 const { getMySubjects } = require('../controllers/teacherController');
 const { getAllStudents } = require('../controllers/studentController');
 const { getAllSubjects } = require('../controllers/subjectController');
 const { getAllClasses } = require('../controllers/classController');
-const { getAllTerms } = require('../controllers/termController');
-const { getResultsByTeacher, getClassExamResults,
+const { getResultsByTeacher, getClassTermResults, // Corrected from getClassExamResults
   getClassFinalReports } = require('../controllers/resultController');
 const { verifyClassTeacher } = require('../middleware/classTeacherAuth');
 const Class = require('../models/Class');
@@ -28,17 +27,17 @@ router.get('/my-subjects', getMySubjects);
 // Get all results entered by the logged-in teacher
 router.get('/results/entered-by-me', getResultsByTeacher);
 
-router.get('/class-results/:classId/:termId/:examType',
-  getClassExamResults,
-  verifyClassTeacher
+// Corrected route to use academicYear/term and existing controller
+router.get('/class-results/:classId/:academicYear/:term',
+  getClassTermResults
 );
 
-router.get('/class-final-reports/:classId/:termId', 
-  getClassFinalReports,
-  verifyClassTeacher
+// Corrected route to use academicYear/term
+router.get('/class-final-reports/:classId/:academicYear/:term', 
+  getClassFinalReports
 );
 
-router.get('/student-report/:studentId/:termId/:examType', getStudentExamReport);
+router.get('/student-report/:studentId/:academicYear/:term', getStudentTermReport);
 
 // GET /api/classes/my-class
 router.get('/my-class', protect, async (req, res) => {
@@ -49,7 +48,7 @@ router.get('/my-class', protect, async (req, res) => {
     }
 
     // Find the teacher's assigned class
-    const myClass = await Class.findOne({ classTeacher: req.user._id })
+    const myClass = await Class.findOne({ classTeacher: req.user._id }) // classTeacher references User model
       .populate('classTeacher', 'firstName lastName')
       .lean();
       
@@ -69,7 +68,6 @@ router.get('/my-class', protect, async (req, res) => {
 // Allow both teachers and admins to access
 router.get('/students', authorize(['teacher']),getAllStudents);
 router.get('/subjects', authorize(['teacher']),getAllSubjects);
-router.get('/terms', authorize(['teacher']),getAllTerms);
 router.get('/classes', authorize(['teacher']),getAllClasses);
 
 module.exports = router;
