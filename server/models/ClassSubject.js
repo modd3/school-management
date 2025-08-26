@@ -16,15 +16,27 @@ const classSubjectSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  assistantTeachers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  }],
   academicYear: {
     type: String,
     required: true,
   },
-  term: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: 'Term',
-  required: true
-},
+  termNumber: {
+    type: Number,
+    required: true
+  },
+  maxMarks: {
+    cat1: { type: Number, default: 30 },
+    cat2: { type: Number, default: 30 },
+    endterm: { type: Number, default: 40 }
+  },
+  gradingScale: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'GradingScale',
+  },
   schedule: [{
     day: {
       type: String,
@@ -34,13 +46,14 @@ const classSubjectSchema = new mongoose.Schema({
     endTime: String,
     room: String,
   }],
-  isActive: {
-    type: Boolean,
-    default: true,
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'active',
   }
 }, { timestamps: true });
 
-classSubjectSchema.index({ class: 1, subject: 1, teacher: 1, term: 1, academicYear: 1 }, { unique: true });
-classSubjectSchema.index({ teacher: 1, academicYear: 1, term: 1 });
+classSubjectSchema.index({ class: 1, subject: 1, teacher: 1, termNumber: 1, academicYear: 1 }, { unique: true });
+classSubjectSchema.index({ teacher: 1, academicYear: 1, termNumber: 1 });
 
 module.exports = mongoose.model('ClassSubject', classSubjectSchema);

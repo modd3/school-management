@@ -1,18 +1,18 @@
 const StudentClass = require('../models/StudentClass');
 const Class = require('../models/Class');
-const Term = require('../models/Term');
+// const Term = require('../models/Term'); // Removed
 
 exports.getStudentClassInfo = async (req, res) => {
-  const { studentId, termId } = req.query;
-  if (!studentId || !termId) {
-    return res.status(400).json({ error: 'studentId and termId are required' });
+  const { studentId, academicYear, termNumber } = req.query;
+  if (!studentId || !academicYear || !termNumber) {
+    return res.status(400).json({ error: 'studentId, academicYear, and termNumber are required' });
   }
 
   try {
     // Find StudentClass relation for this student and term
-    const studentClass = await StudentClass.findOne({ student: studentId, term: termId })
-      .populate('class')
-      .populate('term');
+    const studentClass = await StudentClass.findOne({ student: studentId, academicYear, termNumber })
+      .populate('class');
+      // .populate('term'); // Removed
 
     if (!studentClass) {
       return res.json({});
@@ -24,7 +24,7 @@ exports.getStudentClassInfo = async (req, res) => {
         name: studentClass.class.name,
         stream: studentClass.class.stream ? [studentClass.class.stream] : []
       } : null,
-      academicYear: studentClass.term ? studentClass.term.academicYear : null
+      academicYear: studentClass.academicYear // Directly use academicYear from StudentClass
     });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

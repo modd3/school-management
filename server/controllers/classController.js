@@ -3,6 +3,7 @@ const asyncHandler = require('express-async-handler');
 const Class = require('../models/Class');
 const User = require('../models/User');
 const mongoose = require('mongoose');
+const StudentClass = require('../models/StudentClass'); // Import StudentClass model
 
 // @desc    Create a new class
 
@@ -15,7 +16,7 @@ exports.createClass = asyncHandler(async (req, res) => {
   }
 
   // Check uniqueness
-  const existing = await Class.findOne({ classCode, academicYear });
+  const existing = await Class.findOne({ classCode, academicYear }).lean(); // Added .lean()
   if (existing) {
     return res.status(409).json({ message: 'Class code already exists for this academic year' });
   }
@@ -99,7 +100,7 @@ exports.assignClassTeacher = asyncHandler(async (req, res) => {
   }
 
   // ✅ Fetch the teacher (must be a user with role "teacher")
-  const teacherUser = await User.findById(teacherId);
+  const teacherUser = await User.findById(teacherId).lean(); // Added .lean()
 
   if (!teacherUser || teacherUser.role !== 'teacher') {
     return res.status(400).json({ message: 'Invalid teacher ID or user is not a teacher' });
@@ -110,7 +111,7 @@ exports.assignClassTeacher = asyncHandler(async (req, res) => {
     classId,
     { classTeacher: teacherId },
     { new: true }
-  ).populate('classTeacher', 'firstName lastName email');
+  ).populate('classTeacher', 'firstName lastName email').lean(); // Added .lean()
 
   if (!updatedClass) {
     return res.status(404).json({ message: 'Class not found' });
@@ -132,15 +133,16 @@ exports.getStudentsInClass = asyncHandler(async (req, res) => {
   }
 
   // Find student-class mappings for this class
-  const studentClassMappings = await StudentClass.find({ classId, status: 'active' })
+  const studentClassMappings = await StudentClass.find({ class: classId, status: 'Active' }) // Corrected classId to class
     .populate({
-      path: 'studentId',
+      path: 'student', // Corrected studentId to student
       select: 'firstName lastName admissionNumber gender',
-    });
+    })
+    .lean(); // Added .lean()
 
   // Extract student data
   const students = studentClassMappings
-    .map(mapping => mapping.studentId)
+    .map(mapping => mapping.student) // Corrected studentId to student
     .filter(student => student); // Filter out nulls in case of dangling references
 
   res.status(200).json({ success: true, count: students.length, students });

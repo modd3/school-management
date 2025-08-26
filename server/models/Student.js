@@ -58,4 +58,8 @@ studentSchema.virtual('currentClass', {
   match: { status: 'Active' }
 });
 
+studentSchema.index({ firstName: 1, lastName: 1 });
+studentSchema.index({ parentContacts: 1 });
+studentSchema.index({ isActive: 1 });
+
 module.exports = mongoose.model('Student', studentSchema);

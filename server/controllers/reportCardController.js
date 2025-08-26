@@ -3,7 +3,7 @@ const ReportCard = require('../models/ReportCard');
 const Result = require('../models/Result');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
-const Term = require('../models/Term');
+const AcademicCalendar = require('../models/AcademicCalendar'); // Import AcademicCalendar
 const { calculateOverallGradeFromMeanPoints } = require('../utils/grading'); // Your second utility function
 
 // Helper function to calculate position (can be moved to utils/ranking.js)
@@ -44,15 +44,20 @@ const calculatePositions = (reportCards, type = 'class') => {
 
 
 // @desc    Generate/Publish Report Cards for a specific term
-// @route   POST /api/admin/reports/publish-term-results/:termId
+// @route   POST /api/admin/reports/publish-term-results/:academicYear/:termNumber
 // @access  Private (Admin)
 exports.publishTermResults = async (req, res) => {
-    const { termId } = req.params;
+    const { academicYear, termNumber } = req.params;
 
     try {
-        const term = await Term.findById(termId);
+        // Get the specific term details from AcademicCalendar
+        const academicCalendar = await AcademicCalendar.findOne({ academicYear });
+        if (!academicCalendar) {
+            return res.status(404).json({ message: `Academic calendar not found for ${academicYear}` });
+        }
+        const term = academicCalendar.terms.find(t => t.termNumber === parseInt(termNumber));
         if (!term) {
-            return res.status(404).json({ message: 'Term not found' });
+            return res.status(404).json({ message: `Term ${termNumber} not found in academic year ${academicYear}` });
         }
 
         // Get all students
@@ -62,41 +67,41 @@ exports.publishTermResults = async (req, res) => {
 
         for (const student of students) {
             // Get all results for this student in the current term
-            const studentResults = await Result.find({ student: student._id, term: termId })
+            const studentResults = await Result.find({ student: student._id, academicYear, termNumber })
                                             .populate('subject')
-                                            .select('marksObtained grade points comment');
+                                            .select('overallPercentage overallGrade overallPoints teacherComments'); // Use new Result fields
 
             if (studentResults.length === 0) {
                 // Skip students with no results for this term
-                console.warn(`No results found for student ${student.firstName} ${student.lastName} in term ${term.name}`);
+                console.warn(`No results found for student ${student.firstName} ${student.lastName} in ${academicYear} Term ${termNumber}`);
                 continue;
             }
 
             // Calculate aggregates
             let totalPoints = 0;
-            let totalMarks = 0;
+            let totalPercentage = 0;
             let numberOfSubjects = studentResults.length;
 
             studentResults.forEach(res => {
-                totalPoints += res.points;
-                totalMarks += res.marksObtained;
+                totalPoints += res.overallPoints;
+                totalPercentage += res.overallPercentage;
             });
 
             const meanGradePoint = totalPoints / numberOfSubjects;
-            const averageMarks = totalMarks / numberOfSubjects;
+            const averageMarks = totalPercentage / numberOfSubjects;
             const overallGrade = calculateOverallGradeFromMeanPoints(meanGradePoint); // Implement this in utils/grading.js
 
             // Prepare results array for ReportCard
             const formattedResults = studentResults.map(res => ({
                 subject: res.subject._id,
-                marksObtained: res.marksObtained,
-                grade: res.grade,
-                points: res.points,
-                comment: res.comment
+                marksObtained: res.overallPercentage, // Store overall percentage as marks for report card
+                grade: res.overallGrade,
+                points: res.overallPoints,
+                comment: res.teacherComments
             }));
 
             // Check if report card already exists
-            let reportCard = await ReportCard.findOne({ student: student._id, term: termId });
+            let reportCard = await ReportCard.findOne({ student: student._id, academicYear, termNumber });
 
             if (reportCard) {
                 // Update existing
@@ -112,7 +117,8 @@ exports.publishTermResults = async (req, res) => {
                 // Create new
                 reportCard = new ReportCard({
                     student: student._id,
-                    term: term._id,
+                    academicYear,
+                    termNumber,
                     results: formattedResults,
                     totalPoints,
                     meanGradePoint,
@@ -167,7 +173,7 @@ exports.publishTermResults = async (req, res) => {
         // Save positions back to DB
         await Promise.all(updatedReportCards.map(rc => rc.save()));
 
-        res.status(200).json({ message: `Report cards for term ${term.name} published and positions calculated successfully.` });
+        res.status(200).json({ message: `Report cards for ${academicYear} Term ${termNumber} published and positions calculated successfully.` });
 
     } catch (error) {
         console.error('Error publishing term results:', error);
@@ -176,10 +182,10 @@ exports.publishTermResults = async (req, res) => {
 };
 
 // @desc    Get a specific student's report card for a term
-// @route   GET /api/parent/reportcard/:studentId/:termId
+// @route   GET /api/parent/reportcard/:studentId/:academicYear/:termNumber
 // @access  Private (Parent, Teacher, Admin)
 exports.getStudentReportCard = async (req, res) => {
-    const { studentId, termId } = req.params;
+    const { studentId, academicYear, termNumber } = req.params;
     const userId = req.user.profileId; // Assuming profileId contains parent/teacher/admin ID
 
     try {
@@ -197,23 +203,16 @@ exports.getStudentReportCard = async (req, res) => {
         }
         // Add similar logic for teachers if needed, or allow teachers to see all.
 
-        const reportCard = await ReportCard.findOne({ student: studentId, term: termId })
+        const reportCard = await ReportCard.findOne({ student: studentId, academicYear, termNumber })
             .populate({
                 path: 'student',
                 select: 'firstName lastName admissionNumber studentPhotoUrl currentClass stream',
                 populate: { path: 'currentClass', select: 'name' }
             })
             .populate({
-                path: 'term',
-                select: 'name academicYear startDate endDate'
-            })
-            .populate({
                 path: 'results.subject',
                 select: 'name'
             })
-            .populate('classTeacherComment') // Need to manage this field better. If it's a separate document, populate. If string, just use.
-            // Assuming classTeacherComment and principalComment are just strings on the ReportCard model
-            // populate('classTeacher').populate('principal') if they are references to teacher models for comments
             .lean(); // Use lean() for faster retrieval if not modifying document
 
         if (!reportCard) {
@@ -223,6 +222,9 @@ exports.getStudentReportCard = async (req, res) => {
              return res.status(403).json({ message: 'Report card not yet published.' });
         }
 
+        // Get term details from AcademicCalendar
+        const academicCalendar = await AcademicCalendar.findOne({ academicYear });
+        const term = academicCalendar ? academicCalendar.terms.find(t => t.termNumber === parseInt(termNumber)) : null;
 
         // Format the report card data to match the provided image
         const formattedReportCard = {
@@ -236,8 +238,8 @@ exports.getStudentReportCard = async (req, res) => {
                 name: `${reportCard.student.firstName} ${reportCard.student.lastName} ${reportCard.student.otherNames || ''}`,
                 admNo: reportCard.student.admissionNumber,
                 photoUrl: reportCard.student.studentPhotoUrl,
-                year: reportCard.term.academicYear,
-                term: reportCard.term.name,
+                year: academicYear,
+                term: term ? term.name : `Term ${termNumber}`,
                 class: reportCard.student.currentClass ? reportCard.student.currentClass.name : 'N/A',
                 stream: reportCard.student.stream || 'N/A'
             },
@@ -253,8 +255,8 @@ exports.getStudentReportCard = async (req, res) => {
             // You might need to derive "Out of" by counting students in class for that term
             classTeacherRemarks: reportCard.classTeacherComment || '',
             principalRemarks: reportCard.principalComment || '',
-            closingDate: reportCard.closingDate ? reportCard.closingDate.toLocaleDateString('en-GB') : '',
-            openingDate: reportCard.openingDate ? reportCard.openingDate.toLocaleDateString('en-GB') : ''
+            closingDate: term && term.endDate ? term.endDate.toLocaleDateString('en-GB') : '',
+            openingDate: term && term.startDate ? term.startDate.toLocaleDateString('en-GB') : ''
         };
 
 

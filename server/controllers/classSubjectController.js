@@ -9,22 +9,22 @@ const StudentClass = require('../models/StudentClass');
 const User = require('../models/User'); // Needed for population or direct user interaction
 const Class = require('../models/Class'); // Needed for population
 const Subject = require('../models/Subject'); // Needed for population
-const Term = require('../models/Term'); // Needed for population
+// const Term = require('../models/Term'); // Removed
 
 
 // @desc    Assign a subject to a teacher in a class
 // @route   POST /api/class-subjects/
 // @access  Admin
 exports.assignSubjectToTeacher = asyncHandler(async (req, res) => {
-  const { classId, subjectId, teacherId, academicYear, term } = req.body;
+  const { classId, subjectId, teacherId, academicYear, termNumber } = req.body;
 
   const exists = await ClassSubject.findOne({
     class: classId,
     subject: subjectId,
     teacher: teacherId,
     academicYear,
-    term,
-  });
+    termNumber,
+  }).lean(); // Added .lean()
 
   if (exists) {
     res.status(400);
@@ -36,7 +36,7 @@ exports.assignSubjectToTeacher = asyncHandler(async (req, res) => {
     subject: subjectId,
     teacher: teacherId,
     academicYear,
-    term,
+    termNumber,
   });
 
   res.status(201).json({ success: true, classSubject: assignment });
@@ -47,9 +47,9 @@ exports.assignSubjectToTeacher = asyncHandler(async (req, res) => {
 // @access  Admin
 exports.updateAssignment = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { classId, subjectId, teacherId, academicYear, term } = req.body;
+  const { classId, subjectId, teacherId, academicYear, termNumber } = req.body;
 
-  const current = await ClassSubject.findById(id);
+  const current = await ClassSubject.findById(id).lean(); // Added .lean()
   if (!current) {
     res.status(404);
     throw new Error('Assignment not found.');
@@ -61,23 +61,25 @@ exports.updateAssignment = asyncHandler(async (req, res) => {
     subject: subjectId,
     teacher: teacherId,
     academicYear,
-    term,
-  });
+    termNumber,
+  }).lean(); // Added .lean()
 
   if (duplicate) {
     res.status(400);
     throw new Error('Duplicate assignment exists.');
   }
 
-  current.class = classId || current.class;
-  current.subject = subjectId || current.subject;
-  current.teacher = teacherId || current.teacher;
-  current.academicYear = academicYear || current.academicYear;
-  current.term = term || current.term;
+  // Convert back to Mongoose document for saving
+  const currentDoc = new ClassSubject(current);
+  currentDoc.class = classId || currentDoc.class;
+  currentDoc.subject = subjectId || currentDoc.subject;
+  currentDoc.teacher = teacherId || currentDoc.teacher;
+  currentDoc.academicYear = academicYear || currentDoc.academicYear;
+  currentDoc.termNumber = termNumber || currentDoc.termNumber;
 
-  await current.save();
+  await currentDoc.save();
 
-  res.status(200).json({ success: true, classSubject: current });
+  res.status(200).json({ success: true, classSubject: currentDoc });
 });
 
 // @desc    Delete a class-subject assignment
@@ -86,7 +88,7 @@ exports.updateAssignment = asyncHandler(async (req, res) => {
 exports.deleteAssignment = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const deleted = await ClassSubject.findByIdAndDelete(id);
+  const deleted = await ClassSubject.findByIdAndDelete(id).lean(); // Added .lean()
   if (!deleted) {
     res.status(404);
     throw new Error('Assignment not found.');
@@ -105,18 +107,18 @@ exports.getMyClassSubjects = asyncHandler(async (req, res) => {
     throw new Error('Not authorized to access teacher subjects. Only teacher role is allowed.');
   }
 
-  const { academicYear, term } = req.query; // Allow filtering by year and term
+  const { academicYear, termNumber } = req.query; // Allow filtering by year and term
 
   const filter = {
     teacher: req.user._id, // CRUCIAL: Filter by the logged-in user's ID
     ...(academicYear && { academicYear }),
-    ...(term && { term }),
+    ...(termNumber && { termNumber }),
   };
 
   const classSubjects = await ClassSubject.find(filter)
     .populate('class', 'name') // Populate 'name' field from Class model
     .populate('subject', 'name code category group') // <-- ADDED 'category' and 'group' here
-    .populate('term', 'name') // Populate 'name' from Term model
+    // .populate('term', 'name') // Removed
     .lean(); // Use .lean() for faster queries if you don't need Mongoose documents
 
   if (!classSubjects || classSubjects.length === 0) {
@@ -136,18 +138,18 @@ exports.getMyClassSubjects = asyncHandler(async (req, res) => {
 // @access  Admin
 exports.getSubjectsByTeacher = asyncHandler(async (req, res) => {
   const { teacherId } = req.params;
-  const { academicYear, term } = req.query;
+  const { academicYear, termNumber } = req.query;
 
   const filter = {
     teacher: teacherId,
     ...(academicYear && { academicYear }),
-    ...(term && { term }),
+    ...(termNumber && { termNumber }),
   };
 
   const results = await ClassSubject.find(filter)
     .populate('class', 'name')
     .populate('subject', 'name code category group') // <-- ADDED 'category' and 'group' here
-    .populate('term', 'name')
+    // .populate('term', 'name') // Removed
     .lean();
 
   res.status(200).json({ success: true, count: results.length, classSubjects: results });
@@ -158,18 +160,18 @@ exports.getSubjectsByTeacher = asyncHandler(async (req, res) => {
 // @access  Admin/Teacher
 exports.getSubjectsByClass = asyncHandler(async (req, res) => {
   const { classId } = req.params;
-  const { academicYear, term } = req.query;
+  const { academicYear, termNumber } = req.query;
 
   const filter = {
     class: classId,
     ...(academicYear && { academicYear }),
-    ...(term && { term }),
+    ...(termNumber && { termNumber }),
   };
 
   const results = await ClassSubject.find(filter)
     .populate('subject', 'name code category group') // <-- ADDED 'category' and 'group' here
     .populate('teacher', 'firstName lastName email')
-    .populate('term', 'name')
+    // .populate('term', 'name') // Removed
     .lean();
 
   res.status(200).json({ success: true, count: results.length, classSubjects: results });
@@ -190,7 +192,7 @@ exports.enrollStudentInSubject = asyncHandler(async (req, res) => {
     student: studentId,
     academicYear,
     status: 'Active',
-  });
+  }).lean(); // Added .lean()
 
   if (!mapping) {
     res.status(404);
@@ -202,10 +204,12 @@ exports.enrollStudentInSubject = asyncHandler(async (req, res) => {
     throw new Error('Student already enrolled in this subject.');
   }
 
-  mapping.subjects.push(classSubjectId);
-  await mapping.save();
+  // Convert back to Mongoose document for saving
+  const mappingDoc = new StudentClass(mapping);
+  mappingDoc.subjects.push(classSubjectId);
+  await mappingDoc.save();
 
-  res.status(200).json({ success: true, message: 'Student enrolled.', studentClass: mapping });
+  res.status(200).json({ success: true, message: 'Student enrolled.', studentClass: mappingDoc });
 });
 
 // @desc    Get all students enrolled in a subject
@@ -219,7 +223,7 @@ exports.getStudentsInSubject = asyncHandler(async (req, res) => {
     academicYear,
     status: 'Active',
     subjects: classSubjectId,
-  }).populate('student', 'firstName lastName admissionNumber currentClass stream'); // Populate student details
+  }).populate('student', 'firstName lastName admissionNumber currentClass stream').lean(); // Added .lean()
 
   // Further populate currentClass and stream within the student object if needed
   const students = await Promise.all(mappings.map(async (m) => {

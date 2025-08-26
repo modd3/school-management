@@ -1,44 +1,64 @@
 // routes/teacherRoutes.js
 const express = require('express');
 const router = express.Router();
-const { protect, authorize } = require('../middleware/authMiddleware');
+const { protect, authorize, hasPermission } = require('../middleware/authMiddleware');
 const {
-    enterMarks,
-    getStudentExamReport,
+    enterOrUpdateMarks,
+    bulkEnterMarks,
+    getResultsByTeacher,
+    getClassExamResults,
+    getClassFinalReports
 } = require('../controllers/resultController');
 const { getMySubjects } = require('../controllers/teacherController');
 const { getAllStudents } = require('../controllers/studentController');
 const { getAllSubjects } = require('../controllers/subjectController');
 const { getAllClasses } = require('../controllers/classController');
-const { getAllTerms } = require('../controllers/termController');
-const { getResultsByTeacher, getClassExamResults,
-  getClassFinalReports } = require('../controllers/resultController');
 const { verifyClassTeacher } = require('../middleware/classTeacherAuth');
 const Class = require('../models/Class');
+
+// Progress Tracking
+const {
+    getStudentProgressReport,
+    getClassProgressSummary,
+} = require('../controllers/progressController');
+
+// Attendance Management
+const {
+    markAttendance,
+    getStudentAttendanceHistory,
+    getClassAttendanceSummary
+} = require('../controllers/attendanceController');
+
+// Timetable Management
+const {
+    getClassTimetable,
+    getTeacherTimetable
+} = require('../controllers/timetableController');
 
 // Protect all teacher routes
 router.use(protect);
 router.use(authorize(['teacher']));
 
 // Enter marks for a student
-router.post('/results/enter', enterMarks);
+router.post('/results', hasPermission('academic', 'canEnterResults'), enterOrUpdateMarks);
+router.post('/results/bulk', hasPermission('academic', 'canEnterResults'), bulkEnterMarks);
 
 router.get('/my-subjects', getMySubjects);
 
 // Get all results entered by the logged-in teacher
-router.get('/results/entered-by-me', getResultsByTeacher);
+router.get('/results/entered-by-me', hasPermission('academic', 'canViewAllResults'), getResultsByTeacher);
 
-router.get('/class-results/:classId/:termId/:examType',
+router.get('/class-results/:classId/:academicYear/:termNumber/:examType',
+  hasPermission('academic', 'canViewAllResults'),
   getClassExamResults,
   verifyClassTeacher
 );
 
-router.get('/class-final-reports/:classId/:termId', 
+router.get('/class-final-reports/:classId/:academicYear/:termNumber', 
+  hasPermission('academic', 'canViewAllResults'),
   getClassFinalReports,
   verifyClassTeacher
 );
-
-router.get('/student-report/:studentId/:termId/:examType', getStudentExamReport);
 
 // GET /api/classes/my-class
 router.get('/my-class', protect, async (req, res) => {
@@ -67,9 +87,21 @@ router.get('/my-class', protect, async (req, res) => {
 
 
 // Allow both teachers and admins to access
-router.get('/students', authorize(['teacher']),getAllStudents);
-router.get('/subjects', authorize(['teacher']),getAllSubjects);
-router.get('/terms', authorize(['teacher']),getAllTerms);
-router.get('/classes', authorize(['teacher']),getAllClasses);
+router.get('/students', hasPermission('administrative', 'canViewReports'), getAllStudents);
+router.get('/subjects', hasPermission('administrative', 'canViewReports'), getAllSubjects);
+router.get('/classes', hasPermission('administrative', 'canViewReports'), getAllClasses);
+
+// Progress Tracking
+router.get('/progress/student/:studentId/:academicYear', hasPermission('academic', 'canViewAllResults'), getStudentProgressReport);
+router.get('/progress/class/:classId/:academicYear', hasPermission('academic', 'canViewAllResults'), getClassProgressSummary);
+
+// Attendance Management
+router.post('/attendance/mark', hasPermission('academic', 'canMarkAttendance'), markAttendance);
+router.get('/attendance/student/:studentId/:academicYear', hasPermission('academic', 'canViewAttendance'), getStudentAttendanceHistory);
+router.get('/attendance/class/:classId/:academicYear', hasPermission('academic', 'canViewAttendance'), getClassAttendanceSummary);
+
+// Timetable Management
+router.get('/timetable/class/:classId/:academicYear/:termNumber', hasPermission('academic', 'canViewTimetable'), getClassTimetable);
+router.get('/timetable/teacher/:teacherId/:academicYear/:termNumber', hasPermission('academic', 'canViewTimetable'), getTeacherTimetable);
 
 module.exports = router;

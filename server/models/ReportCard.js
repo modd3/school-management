@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 
 const reportCardSchema = new mongoose.Schema({
     student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
-    term: { type: mongoose.Schema.Types.ObjectId, ref: 'Term', required: true },
+    academicYear: { type: String, required: true },
+    termNumber: { type: Number, required: true },
     results: [{ // Array of results for each subject this term
         subject: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject' },
         marksObtained: Number,
@@ -24,6 +25,6 @@ const reportCardSchema = new mongoose.Schema({
     openingDate: { type: Date }  // From the report form
 }, { timestamps: true });
 
-reportCardSchema.index({ student: 1, term: 1 }, { unique: true });
+reportCardSchema.index({ student: 1, academicYear: 1, termNumber: 1 }, { unique: true });
 
 module.exports = mongoose.model('ReportCard', reportCardSchema);

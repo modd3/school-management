@@ -84,3 +84,21 @@ exports.authorize = (...roles) => {
     next();
   };
 };
+
+// New middleware to check for specific granular permissions
+exports.hasPermission = (category, permission) => {
+    return (req, res, next) => {
+        if (!req.user || !req.user.permissions) {
+            res.status(403);
+            throw new Error('Not authorized, user permissions not found.');
+        }
+
+        // Check if the user has the specific permission
+        if (req.user.permissions[category] && req.user.permissions[category][permission]) {
+            next();
+        } else {
+            res.status(403);
+            throw new Error(`Not authorized, missing ${category}.${permission} permission.`);
+        }
+    };
+};

@@ -31,7 +31,7 @@ exports.createParent = asyncHandler(async (req, res) => {
             if (!mongoose.Types.ObjectId.isValid(childId)) {
                 return res.status(400).json({ message: `Invalid child ID format: ${childId}` });
             }
-            const student = await Student.findById(childId);
+            const student = await Student.findById(childId).lean(); // Added .lean()
             if (!student) {
                 return res.status(404).json({ message: `Student with ID ${childId} not found.` });
             }
@@ -41,7 +41,7 @@ exports.createParent = asyncHandler(async (req, res) => {
     let user = null;
     if (email && password) {
         // Check if a user with this email already exists
-        const existingUser = await User.findOne({ email });
+        const existingUser = await User.findOne({ email }).lean(); // Added .lean()
         if (existingUser) {
             return res.status(400).json({ message: 'A user account with this email already exists.' });
         }
@@ -66,8 +66,10 @@ exports.createParent = asyncHandler(async (req, res) => {
 
     // If a User account was created, link its profileId to this Parent profile
     if (user) {
-        user.profileId = parent._id;
-        await user.save();
+        // Convert user back to Mongoose document for saving
+        const userDoc = new User(user);
+        userDoc.profileId = parent._id;
+        await userDoc.save();
     }
 
     // Link this parent to the specified children's parentContacts array
@@ -87,7 +89,8 @@ exports.createParent = asyncHandler(async (req, res) => {
 exports.getAllParents = asyncHandler(async (req, res) => {
     const parents = await Parent.find({})
                                 .populate('userId', 'email role isActive') // Populate associated user info (email, role, active status)
-                                .populate('children', 'firstName lastName admissionNumber currentClass'); // Populate children's basic info
+                                .populate('children', 'firstName lastName admissionNumber currentClass') // Populate children's basic info
+                                .lean(); // Added .lean()
     res.status(200).json({ success: true, count: parents.length, parents });
 });
 
@@ -97,7 +100,8 @@ exports.getAllParents = asyncHandler(async (req, res) => {
 exports.getParentById = asyncHandler(async (req, res) => {
     const parent = await Parent.findById(req.params.id)
                                 .populate('userId', 'email role isActive')
-                                .populate('children', 'firstName lastName admissionNumber currentClass');
+                                .populate('children', 'firstName lastName admissionNumber currentClass')
+                                .lean(); // Added .lean()
     if (!parent) {
         return res.status(404).json({ message: 'Parent not found.' });
     }
@@ -111,10 +115,13 @@ exports.updateParent = asyncHandler(async (req, res) => {
     const { email, password, children, ...updateData } = req.body;
     const parentId = req.params.id;
 
-    const parent = await Parent.findById(parentId);
+    const parent = await Parent.findById(parentId).lean(); // Added .lean()
     if (!parent) {
         return res.status(404).json({ message: 'Parent not found.' });
     }
+
+    // Convert parent back to Mongoose document for saving
+    const parentDoc = new Parent(parent);
 
     // --- Handle Children updates ---
     if (children) {
@@ -122,7 +129,7 @@ exports.updateParent = asyncHandler(async (req, res) => {
             return res.status(400).json({ message: 'Children must be an array of student IDs.' });
         }
 
-        const oldChildrenIds = parent.children.map(c => c.toString());
+        const oldChildrenIds = parentDoc.children.map(c => c.toString());
         const newChildrenIds = children.map(c => c.toString());
 
         // Students to remove this parent from their contacts
@@ -130,7 +137,7 @@ exports.updateParent = asyncHandler(async (req, res) => {
         if (childrenToRemove.length > 0) {
             await Student.updateMany(
                 { _id: { $in: childrenToRemove } },
-                { $pull: { parentContacts: parent._id } }
+                { $pull: { parentContacts: parentDoc._id } }
             );
         }
 
@@ -141,36 +148,38 @@ exports.updateParent = asyncHandler(async (req, res) => {
                 if (!mongoose.Types.ObjectId.isValid(childId)) {
                     return res.status(400).json({ message: `Invalid child ID to add: ${childId}` });
                 }
-                const student = await Student.findById(childId);
+                const student = await Student.findById(childId).lean(); // Added .lean()
                 if (!student) {
                     return res.status(404).json({ message: `Student with ID ${childId} not found to add.` });
                 }
             }
              await Student.updateMany(
                 { _id: { $in: childrenToAdd } },
-                { $addToSet: { parentContacts: parent._id } }
+                { $addToSet: { parentContacts: parentDoc._id } }
             );
         }
-        parent.children = newChildrenIds; // Update parent's children array
+        parentDoc.children = newChildrenIds; // Update parent's children array
     }
 
     // --- Update associated User account if email/password provided ---
-    if (parent.userId) {
-        const user = await User.findById(parent.userId);
+    if (parentDoc.userId) {
+        const user = await User.findById(parentDoc.userId).lean(); // Added .lean()
         if (user) {
-            if (email && email !== user.email) {
-                user.email = email;
+            // Convert user back to Mongoose document for saving
+            const userDoc = new User(user);
+            if (email && email !== userDoc.email) {
+                userDoc.email = email;
             }
             if (password) {
-                user.password = password; // pre-save hook will hash it
+                userDoc.password = password; // pre-save hook will hash it
             }
             // If changing role here, ensure it's handled (e.g., if parent profile now linked to non-parent user)
             // For now, assume parent profile implies 'parent' role for associated user
-            await user.save({ validateBeforeSave: false }); // Bypass user schema validation on password hash if not modified
+            await userDoc.save({ validateBeforeSave: false }); // Bypass user schema validation on password hash if not modified
         }
     } else if (email && password) {
         // If no user account was linked previously, create one now and link it
-        const existingUser = await User.findOne({ email });
+        const existingUser = await User.findOne({ email }).lean(); // Added .lean()
         if (existingUser) {
             return res.status(400).json({ message: 'A user account with this email already exists and cannot be linked automatically.' });
         }
@@ -179,16 +188,16 @@ exports.updateParent = asyncHandler(async (req, res) => {
             password,
             role: 'parent',
             roleMapping: 'Parent',
-            profileId: parent._id // Link the newly created user to this parent profile
+            profileId: parentDoc._id // Link the newly created user to this parent profile
         });
-        parent.userId = newUser._id; // Link parent profile to the new user
+        parentDoc.userId = newUser._id; // Link parent profile to the new user
     }
 
     // Apply other direct updates to the parent profile
-    Object.assign(parent, updateData);
-    await parent.save();
+    Object.assign(parentDoc, updateData);
+    await parentDoc.save();
 
-    res.status(200).json({ success: true, message: 'Parent profile updated successfully', parent });
+    res.status(200).json({ success: true, message: 'Parent profile updated successfully', parent: parentDoc });
 });
 
 // @desc    Delete (Deactivate) a Parent profile (Admin-only)
@@ -197,30 +206,34 @@ exports.updateParent = asyncHandler(async (req, res) => {
 // This implements a soft delete by setting isActive to false.
 // It also attempts to deactivate the associated User account and unlink from children.
 exports.deleteParent = asyncHandler(async (req, res) => {
-    const parent = await Parent.findById(req.params.id);
+    const parent = await Parent.findById(req.params.id).lean(); // Added .lean()
 
     if (!parent) {
         return res.status(404).json({ message: 'Parent not found.' });
     }
 
+    // Convert parent back to Mongoose document for saving
+    const parentDoc = new Parent(parent);
     // Soft delete the Parent profile
-    parent.isActive = false; // Assuming isActive field on Parent model
-    await parent.save();
+    parentDoc.isActive = false; // Assuming isActive field on Parent model
+    await parentDoc.save();
 
     // Optionally, also deactivate the associated User account
-    if (parent.userId) {
-        const user = await User.findById(parent.userId);
+    if (parentDoc.userId) {
+        const user = await User.findById(parentDoc.userId).lean(); // Added .lean()
         if (user) {
-            user.isActive = false; // Assuming isActive field on User model
-            await user.save();
+            // Convert user back to Mongoose document for saving
+            const userDoc = new User(user);
+            userDoc.isActive = false; // Assuming isActive field on User model
+            await userDoc.save();
         }
     }
 
     // Unlink this parent from their children's parentContacts array
-    if (parent.children && parent.children.length > 0) {
+    if (parentDoc.children && parentDoc.children.length > 0) {
          await Student.updateMany(
-            { _id: { $in: parent.children } },
-            { $pull: { parentContacts: parent._id } }
+            { _id: { $in: parentDoc.children } },
+            { $pull: { parentContacts: parentDoc._id } }
         );
     }
 

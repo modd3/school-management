@@ -19,5 +19,9 @@ const teacherSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true }
 }, { timestamps: true });
 
+teacherSchema.index({ firstName: 1, lastName: 1 });
+teacherSchema.index({ subjectsTaught: 1 });
+teacherSchema.index({ classTaught: 1 });
+teacherSchema.index({ teacherType: 1 });
 
 module.exports = mongoose.model('Teacher', teacherSchema);

@@ -10,4 +10,7 @@ const parentSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true }
 }, { timestamps: true });
 
+parentSchema.index({ firstName: 1, lastName: 1 });
+parentSchema.index({ children: 1 }); // For querying parents by their children
+
 module.exports = mongoose.model('Parent', parentSchema);

@@ -75,7 +75,7 @@ export default function EnterMarksPage() {
     if (user?._id) { // Only run this effect if user is loaded
       initializeData();
     }
-  }, [user?._id, academicYear, term]); // Re-run when user ID, academic year, or term changes
+  }, [user?._id, academicYear, term, selectedClassSubject]); // Re-run when user ID, academic year, or term changes
 
   // Effect 2: Load students and their existing marks when selectedClassSubject or examType changes
   useEffect(() => {

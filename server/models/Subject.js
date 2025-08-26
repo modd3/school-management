@@ -41,4 +41,8 @@ const subjectSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+subjectSchema.index({ name: 1 });
+subjectSchema.index({ category: 1 });
+subjectSchema.index({ isActive: 1 });
+
 module.exports = mongoose.model('Subject', subjectSchema);
