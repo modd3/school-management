@@ -2,9 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect, authorize, hasPermission } = require('../middleware/authMiddleware');
 const {
-    getStudentExamReport,
-    getFinalReportCard,
-    getStudentClassPosition
+    getStudentComprehensiveReport
 } = require('../controllers/resultController');
 
 // Progress Tracking
@@ -26,9 +24,11 @@ const {
 router.use(protect);
 router.use(authorize(['student']));
 
-router.get("/report/:academicYear/:termNumber/:examType", getStudentExamReport);
+// Get comprehensive student report (can filter by term and exam type via query params)
+router.get("/report/:studentId", getStudentComprehensiveReport);
 
-router.get("/final-report/:academicYear/:termNumber", getFinalReportCard);
+// Alias for comprehensive report
+router.get("/final-report/:studentId", getStudentComprehensiveReport);
 
 // Get student class position
 //router.get('/class-position/:classId/:academicYear/:termNumber', getStudentClassPosition);

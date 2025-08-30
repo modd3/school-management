@@ -46,7 +46,7 @@ router.post('/results/bulk', hasPermission('academic', 'canEnterResults'), bulkE
 router.get('/my-subjects', getMySubjects);
 
 // Get all results entered by the logged-in teacher
-router.get('/results/entered-by-me', hasPermission('academic', 'canViewAllResults'), getResultsByTeacher);
+router.get('/results/entered-by-me', hasPermission('academic', 'canEnterResults'), getResultsByTeacher);
 
 router.get('/class-results/:classId/:academicYear/:termNumber/:examType',
   hasPermission('academic', 'canViewAllResults'),
@@ -96,12 +96,12 @@ router.get('/progress/student/:studentId/:academicYear', hasPermission('academic
 router.get('/progress/class/:classId/:academicYear', hasPermission('academic', 'canViewAllResults'), getClassProgressSummary);
 
 // Attendance Management
-router.post('/attendance/mark', hasPermission('academic', 'canMarkAttendance'), markAttendance);
-router.get('/attendance/student/:studentId/:academicYear', hasPermission('academic', 'canViewAttendance'), getStudentAttendanceHistory);
-router.get('/attendance/class/:classId/:academicYear', hasPermission('academic', 'canViewAttendance'), getClassAttendanceSummary);
+router.post('/attendance/mark', hasPermission('administrative', 'canViewReports'), markAttendance);
+router.get('/attendance/student/:studentId/:academicYear', hasPermission('administrative', 'canViewReports'), getStudentAttendanceHistory);
+router.get('/attendance/class/:classId/:academicYear', hasPermission('administrative', 'canViewReports'), getClassAttendanceSummary);
 
 // Timetable Management
-router.get('/timetable/class/:classId/:academicYear/:termNumber', hasPermission('academic', 'canViewTimetable'), getClassTimetable);
-router.get('/timetable/teacher/:teacherId/:academicYear/:termNumber', hasPermission('academic', 'canViewTimetable'), getTeacherTimetable);
+router.get('/timetable/class/:classId/:academicYear/:termNumber', hasPermission('administrative', 'canViewReports'), getClassTimetable);
+router.get('/timetable/teacher/:teacherId/:academicYear/:termNumber', hasPermission('administrative', 'canViewReports'), getTeacherTimetable);
 
 module.exports = router;

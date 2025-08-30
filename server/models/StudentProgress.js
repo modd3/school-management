@@ -66,13 +66,26 @@ const subjectPerformanceSchema = new mongoose.Schema({
 });
 
 const termProgressSchema = new mongoose.Schema({
-    term: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Term',
-        required: true
+    // Term identification (no separate Term model, use embedded data)
+    termId: {
+        type: String,
+        required: true // Format: "academicYear-termNumber" e.g. "2024/2025-1"
     },
-    termName: String,
-    termNumber: Number,
+    termName: {
+        type: String,
+        required: true // e.g. "Term 1", "Term 2", "Term 3"
+    },
+    termNumber: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 3
+    },
+    academicYear: {
+        type: String,
+        required: true,
+        match: /^\d{4}\/\d{4}$/
+    },
     
     // Overall performance for the term
     totalMarks: {
@@ -203,17 +216,15 @@ const studentProgressSchema = new mongoose.Schema({
         
         // Best and worst performing terms
         bestTerm: {
-            term: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'Term'
-            },
+            termId: String, // Format: "academicYear-termNumber"
+            termName: String,
+            termNumber: Number,
             average: Number
         },
         worstTerm: {
-            term: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'Term'
-            },
+            termId: String, // Format: "academicYear-termNumber"
+            termName: String,
+            termNumber: Number,
             average: Number
         },
         
@@ -281,10 +292,9 @@ const studentProgressSchema = new mongoose.Schema({
     // Goals and targets
     targets: {
         termTargets: [{
-            term: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'Term'
-            },
+            termId: String, // Format: "academicYear-termNumber"
+            termName: String,
+            termNumber: Number,
             targetGrade: String,
             targetPercentage: Number,
             achieved: Boolean,
@@ -304,10 +314,9 @@ const studentProgressSchema = new mongoose.Schema({
         activity: String,
         role: String,
         achievement: String,
-        term: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Term'
-        }
+        termId: String, // Format: "academicYear-termNumber"
+        termName: String,
+        termNumber: Number
     }],
     
     // Parent engagement

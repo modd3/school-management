@@ -4,7 +4,7 @@ const Result = require('../models/Result');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
 const AcademicCalendar = require('../models/AcademicCalendar'); // Import AcademicCalendar
-const { calculateOverallGradeFromMeanPoints } = require('../utils/grading'); // Your second utility function
+const GradingScale = require('../models/GradingScale');
 
 // Helper function to calculate position (can be moved to utils/ranking.js)
 const calculatePositions = (reportCards, type = 'class') => {
@@ -89,7 +89,11 @@ exports.publishTermResults = async (req, res) => {
 
             const meanGradePoint = totalPoints / numberOfSubjects;
             const averageMarks = totalPercentage / numberOfSubjects;
-            const overallGrade = calculateOverallGradeFromMeanPoints(meanGradePoint); // Implement this in utils/grading.js
+            
+            // Calculate overall grade using GradingScale
+            const gradingScale = await GradingScale.getDefault('secondary');
+            const overallGradeInfo = gradingScale ? gradingScale.getGradeInfo(averageMarks) : { grade: 'E' };
+            const overallGrade = overallGradeInfo.grade;
 
             // Prepare results array for ReportCard
             const formattedResults = studentResults.map(res => ({

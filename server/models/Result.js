@@ -1,6 +1,6 @@
 // models/Result.js - Enhanced Version
 const mongoose = require('mongoose');
-const { calculateGradeAndPoints } = require('../utils/grading');
+const GradingScale = require('./GradingScale');
 
 const assessmentSchema = new mongoose.Schema({
     marks: { 
@@ -256,7 +256,7 @@ resultSchema.pre('save', async function (next) {
     try {
         // Calculate totals if assessments are provided
         if (this.assessments.cat1 || this.assessments.cat2 || this.assessments.endterm) {
-            this.calculateAggregates();
+            await this.calculateAggregates();
             await this.calculatePerformanceMetrics();
             this.setFlags();
         }
@@ -281,29 +281,35 @@ resultSchema.pre('save', async function (next) {
 });
 
 // Method to calculate aggregate marks, percentages, grades, and points
-resultSchema.methods.calculateAggregates = function() {
+resultSchema.methods.calculateAggregates = async function() {
     let totalMarks = 0;
     let totalMaxMarks = 0;
     let assessmentCount = 0;
 
+    // Get the appropriate grading scale
+    const gradingScale = await GradingScale.getDefault('secondary');
+    if (!gradingScale) {
+        throw new Error('No default grading scale found');
+    }
+
     // Process each assessment
-    ['cat1', 'cat2', 'endterm'].forEach(assessmentType => {
+    for (const assessmentType of ['cat1', 'cat2', 'endterm']) {
         const assessment = this.assessments[assessmentType];
         if (assessment && assessment.marks !== undefined && assessment.maxMarks) {
             // Calculate percentage for individual assessment
             assessment.percentage = (assessment.marks / assessment.maxMarks) * 100;
             
             // Calculate grade and points for individual assessment
-            const { grade, points } = calculateGradeAndPoints(assessment.percentage);
-            assessment.grade = grade;
-            assessment.points = points;
+            const gradeInfo = gradingScale.getGradeInfo(assessment.percentage, this.subject);
+            assessment.grade = gradeInfo.grade;
+            assessment.points = gradeInfo.points;
             
             // Add to totals
             totalMarks += assessment.marks;
             totalMaxMarks += assessment.maxMarks;
             assessmentCount++;
         }
-    });
+    }
 
     // Calculate overall aggregates
     if (totalMaxMarks > 0) {
@@ -311,9 +317,9 @@ resultSchema.methods.calculateAggregates = function() {
         this.totalMaxMarks = totalMaxMarks;
         this.overallPercentage = (totalMarks / totalMaxMarks) * 100;
 
-        const { grade, points } = calculateGradeAndPoints(this.overallPercentage);
-        this.overallGrade = grade;
-        this.overallPoints = points;
+        const overallGradeInfo = gradingScale.getGradeInfo(this.overallPercentage, this.subject);
+        this.overallGrade = overallGradeInfo.grade;
+        this.overallPoints = overallGradeInfo.points;
     }
 };
 
