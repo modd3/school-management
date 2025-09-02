@@ -8,7 +8,7 @@ import { getMyClassSubjects, getStudentsInSubject } from '../../api/classSubject
 import { toast } from 'react-toastify';
 import Spinner from '../../components/Spinner';
 import { getTerms } from '../../api/terms'; // Ensure this path is correct
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/hooks';
 
 export default function EnterMarksPage() {
   const { user } = useAuth(); // Get logged-in user from AuthContext

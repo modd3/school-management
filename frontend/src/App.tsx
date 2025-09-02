@@ -9,12 +9,13 @@ import { DashboardLayout } from './layouts/DashboardLayout';
 import { AuthLayout } from './layouts/AuthLayout';
 import { useAuth, useTheme } from './hooks';
 
-// For now, let's create simple placeholder pages to avoid import errors
-const LoginPage = () => <div>Login Page - Coming Soon</div>;
-const RegisterPage = () => <div>Register Page - Coming Soon</div>;
-const ForgotPasswordPage = () => <div>Forgot Password - Coming Soon</div>;
-const ResetPasswordPage = () => <div>Reset Password - Coming Soon</div>;
-const DashboardPage = () => <div>Dashboard - Coming Soon</div>;
+// Import actual pages
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import ModernDashboardPage from './pages/ModernDashboardPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 const App: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -61,7 +62,7 @@ const App: React.FC = () => {
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             {/* Dashboard */}
-            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/dashboard" element={<ModernDashboardPage />} />
             
             {/* More routes will be added as pages are created */}
           </Route>

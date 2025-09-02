@@ -214,6 +214,9 @@ function usePermissions(): PermissionCheck {
     return !hasAnyPermission(writePermissions);
   }, [userPermissions]);
 
+  // Add role helper functions from useAuth
+  const { hasRole, hasAnyRole, isAdmin, isTeacher, isStudent, isParent } = useAuth();
+
   return {
     hasPermission,
     hasAnyPermission,
@@ -228,6 +231,13 @@ function usePermissions(): PermissionCheck {
     canViewReports,
     canManageSystem,
     isReadOnly,
+    // Role helpers
+    hasRole,
+    hasAnyRole,
+    isAdmin,
+    isTeacher,
+    isStudent,
+    isParent,
   };
 }
 

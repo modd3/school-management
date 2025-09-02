@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { FaBookOpen, FaFilter, FaSpinner, FaSearch, FaTimes, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/hooks';
 import { getResultsByTeacher } from '../../api/results'; // Updated to match your API function name
 import { getMyClassSubjects } from '../../api/classSubjects';
 import { getTerms } from '../../api/terms';

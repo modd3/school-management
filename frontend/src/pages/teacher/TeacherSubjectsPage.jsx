@@ -1,7 +1,7 @@
 // frontend/src/pages/teacher/TeacherSubjectsPage.jsx
 import React, { useState, useEffect } from 'react';
 import { FaChalkboardTeacher, FaBookOpen, FaCalendarAlt, FaGraduationCap } from 'react-icons/fa';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/hooks';
 import { getMyClassSubjects } from '../../api/classSubjects'; // Assuming you create this API call
 import { getTerms } from '../../api/terms'; // To populate term dropdown
 import { toast } from 'react-toastify'; // For notifications

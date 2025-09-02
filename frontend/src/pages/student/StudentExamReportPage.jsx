@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FaBookOpen, FaSpinner, FaPrint, FaFilePdf } from 'react-icons/fa';
 import { getStudentResults } from '../../api/results';
 import { getTerms } from '../../api/terms';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/hooks';
 
 const EXAM_TYPES = [
   { value: 'Opener', label: 'Opener' },

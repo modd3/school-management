@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaBookOpen, FaSpinner, FaPrint, FaFilePdf, FaCalendarAlt } from 'react-icons/fa';
 import { getTerms } from '../../api/terms';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/hooks';
 import { getClassFinalReports } from '../../api/results';
 
 export default function StudentFinalReportPage() {

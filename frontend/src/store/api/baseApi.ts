@@ -1,13 +1,11 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { RootState } from '../index';
-import { logout } from '../slices/authSlice';
 
 const baseQuery = fetchBaseQuery({
   baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
   credentials: 'include',
   prepareHeaders: (headers, { getState }) => {
-    // Get token from Redux state
-    const token = (getState() as RootState).auth.token;
+    // Get token from localStorage to avoid circular dependency
+    const token = localStorage.getItem('token');
     
     // Set authorization header if token exists
     if (token) {
@@ -25,10 +23,11 @@ const baseQuery = fetchBaseQuery({
 const baseQueryWithReauth = async (args: any, api: any, extraOptions: any) => {
   let result = await baseQuery(args, api, extraOptions);
 
-  // Handle 401 responses by logging out the user
+  // Handle 401 responses by clearing token
   if (result?.error?.status === 401) {
-    // Clear user data and redirect to login
-    api.dispatch(logout());
+    // Clear token from localStorage
+    localStorage.removeItem('token');
+    // Redirect will be handled by components using auth hooks
   }
 
   return result;
@@ -56,4 +55,3 @@ export const baseApi = createApi({
   endpoints: () => ({}),
 });
 
-export default baseApi;

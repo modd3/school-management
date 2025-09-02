@@ -40,3 +40,6 @@ setupListeners(store.dispatch);
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
+
+// Export the store as default for easier imports
+export { store as default };

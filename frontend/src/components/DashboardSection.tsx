@@ -1,1 +1,80 @@
-import React from 'react';\nimport { Disclosure, DisclosureButton, DisclosurePanel, Transition } from '@headlessui/react';\nimport { FaChevronDown } from 'react-icons/fa';\nimport { Link } from 'react-router-dom';\n\ninterface DashboardLink {\n  label: string;\n  to?: string;\n  icon?: React.ReactNode;\n  isButton?: boolean;\n  onClick?: () => void;\n}\n\ninterface DashboardSectionProps {\n  title: string;\n  links?: DashboardLink[];\n}\n\nexport const DashboardSection: React.FC<DashboardSectionProps> = ({ \n  title, \n  links = [] \n}) => {\n  return (\n    <Disclosure>\n      {({ open }) => (\n        <div className=\"w-full\">\n          <DisclosureButton className=\"w-full flex justify-between items-center px-4 py-3 text-left bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition font-semibold text-blue-800 dark:text-blue-200\">\n            <span>{title}</span>\n            <FaChevronDown\n              className={`transform transition-transform duration-300 ${\n                open ? 'rotate-180' : 'rotate-0'\n              }`}\n            />\n          </DisclosureButton>\n\n          <Transition\n            show={open}\n            enter=\"transition duration-300 ease-out\"\n            enterFrom=\"transform scale-y-0 opacity-0 origin-top\"\n            enterTo=\"transform scale-y-100 opacity-100 origin-top\"\n            leave=\"transition duration-200 ease-in\"\n            leaveFrom=\"transform scale-y-100 opacity-100 origin-top\"\n            leaveTo=\"transform scale-y-0 opacity-0 origin-top\"\n          >\n            <DisclosurePanel className=\"mt-2 space-y-2 px-4 py-2 bg-white dark:bg-gray-800 border border-blue-100 dark:border-blue-800 rounded shadow-sm\">\n              {links.map((link, index) => (\n                link.isButton ? (\n                  <button\n                    key={`${link.label}-${index}`}\n                    onClick={link.onClick}\n                    className=\"flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition\"\n                  >\n                    {link.icon && <span className=\"text-blue-500\">{link.icon}</span>}\n                    <span>{link.label}</span>\n                  </button>\n                ) : (\n                  <Link\n                    key={`${link.label}-${index}`}\n                    to={link.to || '#'}\n                    className=\"flex items-center gap-2 px-3 py-2 text-sm text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition\"\n                  >\n                    {link.icon && <span className=\"text-blue-500\">{link.icon}</span>}\n                    <span>{link.label}</span>\n                  </Link>\n                )\n              ))}\n            </DisclosurePanel>\n          </Transition>\n        </div>\n      )}\n    </Disclosure>\n  );\n};\n\nexport default DashboardSection;
+import React from 'react';
+import { Link } from 'react-router-dom';
+
+interface DashboardLink {
+  to?: string;
+  onClick?: () => void;
+  label: string;
+  icon: React.ReactNode;
+  isButton?: boolean;
+  description?: string;
+}
+
+interface DashboardSectionProps {
+  title: string;
+  links: DashboardLink[];
+  className?: string;
+}
+
+export const DashboardSection: React.FC<DashboardSectionProps> = ({
+  title,
+  links,
+  className = ''
+}) => {
+  return (
+    <div className={`bg-white rounded-xl shadow-lg p-6 ${className}`}>
+      <h2 className="text-xl font-bold text-gray-900 mb-6">{title}</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {links.map((link, index) => (
+          <div key={index}>
+            {link.to ? (
+              <Link
+                to={link.to}
+                className="block p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 group"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="text-blue-600 text-xl group-hover:text-blue-700">
+                    {link.icon}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 group-hover:text-blue-700">
+                      {link.label}
+                    </h3>
+                    {link.description && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        {link.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            ) : (
+              <button
+                onClick={link.onClick}
+                className="w-full text-left p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 group"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="text-blue-600 text-xl group-hover:text-blue-700">
+                    {link.icon}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 group-hover:text-blue-700">
+                      {link.label}
+                    </h3>
+                    {link.description && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        {link.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default DashboardSection;

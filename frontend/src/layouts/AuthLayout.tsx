@@ -40,7 +40,7 @@ export const AuthLayout: React.FC = () => {
         
         {/* Footer */}
         <div className="text-center text-sm text-gray-500">
-          &copy; 2024 School Management System. All rights reserved.
+          &copy; School Management System. All rights reserved.
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 // src/pages/DashboardPage.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/hooks';
 // import { logoutUser } from '../api/auth'; // No longer needed if logout is handled by context
 
 import {

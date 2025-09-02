@@ -5,7 +5,7 @@ import { getTerms, getTeacherTerms } from '../../api/terms';
 import { getClasses, getTeacherClasses } from '../../api/classes';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../../components/Spinner';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/hooks';
 import { getMyClassAsClassTeacher } from '../../api/classes';
 import { FaBookOpen, FaPrint, FaFilePdf } from 'react-icons/fa';
 
