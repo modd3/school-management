@@ -246,7 +246,10 @@ exports.getStudentsInSubject = asyncHandler(async (req, res) => {
   }).populate('student', 'firstName lastName admissionNumber currentClass stream'); // Populate student details
 
   // Further populate currentClass and stream within the student object if needed
-  const students = await Promise.all(mappings.map(async (m) => {
+  // Filter out any null student references that might exist due to data inconsistencies
+  const validMappings = mappings.filter(m => m.student !== null);
+  
+  const students = await Promise.all(validMappings.map(async (m) => {
     const student = m.student.toObject(); // Convert to plain object to modify
     if (student.currentClass) {
       const cls = await Class.findById(student.currentClass).select('name stream').lean();
@@ -254,6 +257,11 @@ exports.getStudentsInSubject = asyncHandler(async (req, res) => {
     }
     return student;
   }));
+  
+  // Log warning if we found invalid student references
+  if (mappings.length !== validMappings.length) {
+    console.warn(`Found ${mappings.length - validMappings.length} invalid student references in ClassSubject ${classSubjectId}`);
+  }
 
   res.status(200).json({ success: true, count: students.length, students });
 });
