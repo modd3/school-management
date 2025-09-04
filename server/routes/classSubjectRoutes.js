@@ -11,11 +11,16 @@ const {
   getMyClassSubjects,   // NEW: Used by a logged-in Teacher to get THEIR OWN subjects
   getSubjectsByClass,
   enrollStudentInSubject,
-  getStudentsInSubject
+  getStudentsInSubject,
+  getAllAssignments     // Get all subject assignments
 } = require('../controllers/classSubjectController');
 
 
 // --- ADMIN ROUTES (Highly restricted for management operations) ---
+
+// Get all subject assignments - Admin overview
+// Route: GET /api/class-subjects
+router.get('/', protect, authorize('admin'), getAllAssignments);
 
 // Assign a subject to a teacher in a class
 // Route: POST /api/class-subjects/

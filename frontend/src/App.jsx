@@ -18,6 +18,7 @@ import ManageTeachersPage from './pages/admin/ManageTeachersPage';
 import ManageClassesPage from './pages/admin/ManageClassesPage';
 import ManageSubjectsPage from './pages/admin/ManageSubjectsPage';
 import ManageTermsPage from './pages/admin/ManageTermsPage'; 
+import SubjectAssignmentsPage from './pages/admin/SubjectAssignmentsPage';
 import EditUserPage from './pages/admin/EditUserPage'; 
 import EditStudentPage from './pages/admin/EditStudentPage'; // Import EditStudentPage
 // Add this import
@@ -142,6 +143,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <ManageTermsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/subject-assignments"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <SubjectAssignmentsPage />
                 </ProtectedRoute>
               }
             />

@@ -127,38 +127,104 @@ export default function ManageStudentsPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission Number</th> {/* Changed from Student ID */}
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission No.</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class & Stream</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent Contact</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredStudents.map((student) => (
                   <tr key={student._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.firstName} {student.lastName}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{student.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{student.admissionNumber}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {student.currentClass
-                        ? `${student.currentClass.name}${student.currentClass.stream ? ' ' + student.currentClass.stream : ''}`
-                        : 'N/A'}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10">
+                          {student.studentPhotoUrl ? (
+                            <img className="h-10 w-10 rounded-full" src={student.studentPhotoUrl} alt="" />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                              <FaUserGraduate className="text-blue-600" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {student.firstName} {student.lastName}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {student.email}
+                          </div>
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-center space-x-2">
-                      <button
-                        onClick={() => handleEditStudent(student._id)}
-                        className="text-blue-600 hover:text-blue-900 p-2 rounded-full hover:bg-blue-100 transition-colors"
-                        title="Edit Student"
-                      >
-                        <FaEdit size={18}/>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteStudent(student._id)}
-                        className="text-red-600 hover:text-red-900 p-2 rounded-full hover:bg-red-100 transition-colors"
-                        title="Delete Student"
-                      >
-                        <FaTrashAlt size={18}/>
-                      </button>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-mono">
+                      {student.admissionNumber}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {student.currentClass ? (
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {student.currentClass.name}
+                          </div>
+                          {student.stream && (
+                            <div className="text-sm text-gray-500">
+                              {student.stream} Stream
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">Not Assigned</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        student.gender === 'Male' ? 'bg-blue-100 text-blue-800' :
+                        student.gender === 'Female' ? 'bg-pink-100 text-pink-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {student.gender || 'Not Specified'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {student.parentContacts && student.parentContacts.length > 0 ? (
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {student.parentContacts[0].firstName} {student.parentContacts[0].lastName}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {student.parentContacts[0].phoneNumber || 'No phone'}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">No Parent</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        student.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {student.isActive !== false ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-center space-x-2">
+                        <button
+                          onClick={() => handleEditStudent(student._id)}
+                          className="text-blue-600 hover:text-blue-900 p-2 rounded-full hover:bg-blue-100 transition-colors"
+                          title="Edit Student"
+                        >
+                          <FaEdit size={16}/>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteStudent(student._id)}
+                          className="text-red-600 hover:text-red-900 p-2 rounded-full hover:bg-red-100 transition-colors"
+                          title="Delete Student"
+                        >
+                          <FaTrashAlt size={16}/>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

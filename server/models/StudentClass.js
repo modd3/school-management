@@ -44,7 +44,6 @@ const studentClassSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 studentClassSchema.index({ student: 1, class: 1, academicYear: 1 }, { unique: true });
-studentClassSchema.index({ class: 1, academicYear: 1 }, { unique: true });
 studentClassSchema.index({ class: 1, academicYear: 1, status: 1 });
 
 module.exports = mongoose.model('StudentClass', studentClassSchema);

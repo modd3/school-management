@@ -3,7 +3,7 @@ import { FaBookOpen, FaFilter, FaSpinner, FaSearch, FaTimes, FaSort, FaSortUp, F
 import { useAuth } from '../../context/AuthContext';
 import { getResultsByTeacher } from '../../api/results'; // Updated to match your API function name
 import { getMyClassSubjects } from '../../api/classSubjects';
-import { getTerms } from '../../api/terms';
+import { getTeacherTerms } from '../../api/terms';
 import { toast } from 'react-toastify';
 
 export default function TeacherResultsPage() {
@@ -39,7 +39,7 @@ export default function TeacherResultsPage() {
         setError(null);
 
         // Fetch terms
-        const termsRes = await getTerms();
+        const termsRes = await getTeacherTerms();
         setTerms(termsRes.terms || []);
 
         // Fetch class subjects assigned to the logged-in teacher

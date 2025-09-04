@@ -157,3 +157,31 @@ exports.deleteTerm = asyncHandler(async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Term deactivated successfully.' });
 });
+
+// @desc    Get current active term
+// @route   GET /api/terms/current
+// @access  Private (All authenticated users)
+exports.getCurrentTerm = asyncHandler(async (req, res) => {
+    try {
+        const currentTerm = await Term.getCurrentTerm();
+        
+        if (!currentTerm) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'No current term found. Please contact admin to set up terms.' 
+            });
+        }
+        
+        res.status(200).json({ 
+            success: true, 
+            term: currentTerm,
+            isCurrentByDate: currentTerm.isCurrentByDate
+        });
+    } catch (error) {
+        console.error('Error getting current term:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Server error while fetching current term.' 
+        });
+    }
+});

@@ -170,7 +170,7 @@ exports.deleteUser = asyncHandler(async (req, res) => {
     }
 
     // Prevent admin from deleting or deactivating their own account via this endpoint
-    if (user._id.toString() === req.user.id.toString()) {
+    if (user._id === req.user.id) {
         return res.status(400).json({ message: 'Admin cannot delete their own account via this endpoint.' });
     }
 

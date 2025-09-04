@@ -4,7 +4,7 @@ const Result = require('../models/Result');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
 const Term = require('../models/Term');
-const { calculateOverallGradeFromMeanPoints } = require('../utils/grading'); // Your second utility function
+const { calculateOverallGrade } = require('../utils/grading');
 
 // Helper function to calculate position (can be moved to utils/ranking.js)
 const calculatePositions = (reportCards, type = 'class') => {
@@ -84,7 +84,7 @@ exports.publishTermResults = async (req, res) => {
 
             const meanGradePoint = totalPoints / numberOfSubjects;
             const averageMarks = totalMarks / numberOfSubjects;
-            const overallGrade = calculateOverallGradeFromMeanPoints(meanGradePoint); // Implement this in utils/grading.js
+            const overallGrade = calculateOverallGrade(meanGradePoint);
 
             // Prepare results array for ReportCard
             const formattedResults = studentResults.map(res => ({

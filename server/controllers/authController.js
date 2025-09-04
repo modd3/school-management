@@ -120,14 +120,10 @@ exports.register = asyncHandler(async (req, res) => {
         throw new Error('User already exists');
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create User
+    // Create User (password will be hashed by the pre-save hook in User model)
     const newUser = await User.create({
         email,
-        password: hashedPassword,
+        password,
         role,
         firstName,
         lastName,
@@ -158,21 +154,12 @@ exports.register = asyncHandler(async (req, res) => {
                 stream: stream || null, // Set stream from profileData or null
             });
 
-            // 2. Create StudentClass Entry with auto-generated rollNumber
+            // 2. Create StudentClass Entry
             if (classId && academicYear) {
-                // Find the highest roll number for this class and academic year
-                const lastStudentClass = await StudentClass.findOne({
-                    class: classId,
-                    academicYear: academicYear
-                }).sort({ rollNumber: -1 }); // Sort descending to get the highest
-
-                const newRollNumber = (lastStudentClass && lastStudentClass.rollNumber) ? lastStudentClass.rollNumber + 1 : 1;
-
                 studentClassEntry = await StudentClass.create({
                     student: profile._id, // Link to the Student profile
                     class: classId,
                     academicYear,
-                    rollNumber: newRollNumber, // Assign the generated unique roll number
                     enrollmentDate: new Date(),
                     status: 'Active',
                     subjects: [], // Initialize as empty, will be populated
@@ -212,6 +199,7 @@ exports.register = asyncHandler(async (req, res) => {
                 userId: newUser._id,
                 firstName,
                 lastName,
+                email, // Add email from the main registration data
                 staffId,
                 teacherType,
                 phoneNumber,

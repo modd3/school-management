@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { FaChalkboardTeacher, FaBookOpen, FaCalendarAlt, FaGraduationCap } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import { getMyClassSubjects } from '../../api/classSubjects'; // Assuming you create this API call
-import { getTerms } from '../../api/terms'; // To populate term dropdown
+import { getTeacherTerms } from '../../api/terms'; // To populate term dropdown
 import { toast } from 'react-toastify'; // For notifications
 
 export default function TeacherSubjectsPage() {
@@ -18,7 +18,7 @@ export default function TeacherSubjectsPage() {
   useEffect(() => {
     async function loadTerms() {
       try {
-        const res = await getTerms();
+        const res = await getTeacherTerms();
         setTerms(res.terms || []);
         // Optionally set a default term if available and not already selected
         // For now, let's just leave it blank or set the first one if needed
@@ -51,8 +51,8 @@ export default function TeacherSubjectsPage() {
           queryParams.append('academicYear', academicYear);
         }
 
-        // Make sure your getMyClassSubjects API function accepts query parameters
-        const res = await getMyClassSubjects(queryParams.toString()); // Pass query string
+        // Pass individual parameters instead of query string
+        const res = await getMyClassSubjects(selectedTerm, academicYear);
         setClassSubjects(res.classSubjects || []);
       } catch (err) {
         console.error('Failed to fetch teacher subjects:', err);

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaUserGraduate, FaCalendarAlt, FaVenusMars, FaIdCardAlt, FaEdit, FaUser } from 'react-icons/fa'; // Added FaUser for consistency
+import { FaUserGraduate, FaCalendarAlt, FaVenusMars, FaIdCardAlt, FaEdit, FaUser, FaSchool } from 'react-icons/fa'; // Added FaUser and FaSchool for consistency
 import { getStudentById, updateStudent } from '../../api/students';
 import { getAllParents } from '../../api/parents';
 import { getClasses } from '../../api/classes'; // Import getClasses to fetch class options
 import { toast } from 'react-toastify'; // Import toast
 
 export default function EditStudentPage() {
-  const { id } = useParams(); // Changed from studentId to id to match App.jsx route param
+  const { studentId } = useParams(); // Extract studentId from URL parameters
   const navigate = useNavigate();
   const [formData, setFormData] = useState(null);
   const [parentOptions, setParentOptions] = useState([]);
@@ -21,7 +21,7 @@ export default function EditStudentPage() {
     async function fetchData() {
       try {
         // Get student data first
-        const res = await getStudentById(id); // Use 'id' from useParams
+        const res = await getStudentById(studentId); // Use 'studentId' from useParams
         const student = res.student;
 
         // Get all parents
@@ -50,7 +50,7 @@ export default function EditStudentPage() {
       }
     }
     fetchData();
-  }, [id]); // Depend on 'id'
+  }, [studentId]); // Depend on 'studentId'
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -80,7 +80,7 @@ export default function EditStudentPage() {
       const dataToUpdate = { ...formData };
       delete dataToUpdate.admissionNumber; // Assuming admissionNumber is auto-generated and not editable
 
-      await updateStudent(id, dataToUpdate); // Use 'id' from useParams
+      await updateStudent(studentId, dataToUpdate); // Use 'studentId' from useParams
       toast.success('Student updated successfully!'); // Use toast for success
       setTimeout(() => navigate('/admin/students'), 1200);
     } catch (err) {
@@ -170,7 +170,7 @@ export default function EditStudentPage() {
             </div>
           </div>
           <div className="relative">
-            <FaLaptopHouse className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400" size={20}/>
+            <FaSchool className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400" size={20}/>
             <select
               name="currentClass"
               value={formData.currentClass || ''}

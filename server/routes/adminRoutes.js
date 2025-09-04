@@ -58,6 +58,8 @@ const {
   deleteAssignment,
   enrollStudentInSubject,
   getStudentsInSubject,
+  getAllAssignments,
+  fixMissingCoreSubjects
 } = require('../controllers/classSubjectController');
 // Class-Subject Management (Assignments)
 
@@ -128,6 +130,7 @@ router.delete('/terms/:id', deleteTerm); // Deactivates term
 router.post('/reports/publish-term-results/:termId', publishTermResults);
 
 // 9. Class-Subject Assignments (map subject to teacher in a class)
+router.get('/class-subjects', getAllAssignments); // Get all subject assignments
 router.post('/class-subjects', assignSubjectToTeacher);
 router.put('/class-subjects/:id', updateAssignment);
 router.delete('/class-subjects/:id', deleteAssignment);
@@ -135,6 +138,7 @@ router.get('/class-subjects/teacher/:teacherId', getSubjectsByTeacher);
 router.get('/class-subjects/class/:classId', getSubjectsByClass);
 router.post('/class-subjects/enroll', enrollStudentInSubject);
 router.get('/class-subjects/:classSubjectId/students', getStudentsInSubject);
+router.post('/class-subjects/fix-missing-core', fixMissingCoreSubjects);
 
 // 10. Results Management (Teacher's perspective)
 // Note: These routes are primarily for teachers, but admins can also access them

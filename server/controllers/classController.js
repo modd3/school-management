@@ -2,6 +2,7 @@
 const asyncHandler = require('express-async-handler');
 const Class = require('../models/Class');
 const User = require('../models/User');
+const StudentClass = require('../models/StudentClass');
 const mongoose = require('mongoose');
 
 // @desc    Create a new class
@@ -126,21 +127,28 @@ exports.assignClassTeacher = asyncHandler(async (req, res) => {
 
 exports.getStudentsInClass = asyncHandler(async (req, res) => {
   const { classId } = req.params;
+  const { academicYear } = req.query; // Get academic year from query params
 
   if (!classId) {
     return res.status(400).json({ message: 'Class ID is required' });
   }
 
+  // Build query filter
+  const filter = { class: classId, status: 'Active' };
+  if (academicYear) {
+    filter.academicYear = academicYear;
+  }
+
   // Find student-class mappings for this class
-  const studentClassMappings = await StudentClass.find({ classId, status: 'active' })
+  const studentClassMappings = await StudentClass.find(filter)
     .populate({
-      path: 'studentId',
-      select: 'firstName lastName admissionNumber gender',
+      path: 'student',
+      select: 'firstName lastName admissionNumber gender dateOfBirth',
     });
 
   // Extract student data
   const students = studentClassMappings
-    .map(mapping => mapping.studentId)
+    .map(mapping => mapping.student)
     .filter(student => student); // Filter out nulls in case of dangling references
 
   res.status(200).json({ success: true, count: students.length, students });

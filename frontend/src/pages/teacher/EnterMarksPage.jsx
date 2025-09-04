@@ -7,8 +7,9 @@ import {
 import { getMyClassSubjects, getStudentsInSubject } from '../../api/classSubjects'; // Ensure these paths are correct
 import { toast } from 'react-toastify';
 import Spinner from '../../components/Spinner';
-import { getTerms } from '../../api/terms'; // Ensure this path is correct
+import { getTeacherTerms } from '../../api/terms'; // Ensure this path is correct
 import { useAuth } from '../../context/AuthContext';
+import { calculateGradeAndPoints } from '../../utils/grading'; // Import grading utility
 
 export default function EnterMarksPage() {
   const { user } = useAuth(); // Get logged-in user from AuthContext
@@ -34,7 +35,7 @@ export default function EnterMarksPage() {
 
       try {
         // Step 1: Load Terms
-        const termsRes = await getTerms();
+        const termsRes = await getTeacherTerms();
         setTerms(termsRes.terms || []);
 
         let currentTermId = term;
@@ -149,24 +150,12 @@ export default function EnterMarksPage() {
 
       if (!isNaN(marksObtained) && !isNaN(outOf) && outOf > 0) {
         const percentage = (marksObtained / outOf) * 100;
-        // Simplified frontend grading for display. Backend handles the actual grading logic.
-        let displayGrade = 'N/A';
-        if (percentage >= 80) displayGrade = 'A';
-        else if (percentage >= 75 && percentage <= 79.99) displayGrade = 'A-';
-        else if (percentage >= 70 && percentage <= 74.99) displayGrade = 'B+';
-        else if (percentage >= 65 && percentage <= 69.99) displayGrade = 'B';
-        else if (percentage >= 60 && percentage <= 64.99) displayGrade = 'B-';
-        else if (percentage >= 55 && percentage <= 59.99) displayGrade = 'C+';
-        else if (percentage >= 50 && percentage <= 54.99) displayGrade = 'C';
-        else if (percentage >= 45 && percentage <= 49.99) displayGrade = 'C-';
-        else if (percentage >= 40 && percentage <= 44.99) displayGrade = 'D+';
-        else if (percentage >= 35 && percentage <= 39.99) displayGrade = 'D';
-        else if (percentage >= 30 && percentage <= 34.99) displayGrade = 'D-';
-        else displayGrade = 'E';
+        // Use consistent grading utility for frontend display (matches backend calculation)
+        const { grade, points } = calculateGradeAndPoints(percentage);
 
         updatedStudentMarks.percentage = percentage;
-        updatedStudentMarks.grade = displayGrade;
-        // Points are not calculated on frontend as they are backend-specific
+        updatedStudentMarks.grade = grade;
+        updatedStudentMarks.points = points;
         // Comment is not auto-generated on frontend to allow manual input
       } else {
         updatedStudentMarks.percentage = null;

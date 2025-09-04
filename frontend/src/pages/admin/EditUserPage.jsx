@@ -16,7 +16,7 @@ const TEACHER_TYPES = [
 ];
 
 export default function EditUserPage() {
-  const { id } = useParams(); // Changed from userId to id to match App.jsx route param
+  const { userId } = useParams(); // Use userId to match App.jsx route param
   const navigate = useNavigate();
   const [formData, setFormData] = useState(null);
   const [parentOptions, setParentOptions] = useState([]);
@@ -29,7 +29,7 @@ export default function EditUserPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const person = await getUserById(id); // Use 'id' from useParams
+        const person = await getUserById(userId); // Use 'userId' from useParams
         const user = person.user;
         // console.log("Fetched User:", user); // Debugging
 
@@ -69,7 +69,7 @@ export default function EditUserPage() {
       }
     }
     fetchData();
-  }, [id]);
+  }, [userId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -123,7 +123,7 @@ export default function EditUserPage() {
     // Admin role typically doesn't have a separate profile model with these fields
 
     try {
-      await updateUser(id, { // Use 'id' from useParams
+      await updateUser(userId, { // Use 'userId' from useParams
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,

@@ -55,29 +55,53 @@ exports.updateAssignment = asyncHandler(async (req, res) => {
     throw new Error('Assignment not found.');
   }
 
+  // Build the update object with only provided fields
+  const updateData = {
+    ...(classId && { class: classId }),
+    ...(subjectId && { subject: subjectId }),
+    ...(teacherId && { teacher: teacherId }),
+    ...(academicYear && { academicYear }),
+    ...(term && { term })
+  };
+
+  // Only check for duplicates if we're actually changing the combination
+  const finalClassId = classId || current.class;
+  const finalSubjectId = subjectId || current.subject;
+  const finalTeacherId = teacherId || current.teacher;
+  const finalAcademicYear = academicYear || current.academicYear;
+  const finalTerm = term || current.term;
+
+  // Check if the final combination would create a duplicate (excluding current record)
   const duplicate = await ClassSubject.findOne({
     _id: { $ne: id },
-    class: classId,
-    subject: subjectId,
-    teacher: teacherId,
-    academicYear,
-    term,
+    class: finalClassId,
+    subject: finalSubjectId,
+    teacher: finalTeacherId,
+    academicYear: finalAcademicYear,
+    term: finalTerm,
   });
 
   if (duplicate) {
     res.status(400);
-    throw new Error('Duplicate assignment exists.');
+    throw new Error('This assignment combination already exists for another record.');
   }
 
-  current.class = classId || current.class;
-  current.subject = subjectId || current.subject;
-  current.teacher = teacherId || current.teacher;
-  current.academicYear = academicYear || current.academicYear;
-  current.term = term || current.term;
-
+  // Apply the updates
+  Object.assign(current, updateData);
   await current.save();
 
-  res.status(200).json({ success: true, classSubject: current });
+  // Populate the response for better frontend handling
+  const updatedAssignment = await ClassSubject.findById(id)
+    .populate('class', 'name stream')
+    .populate('subject', 'name code category group')
+    .populate('teacher', 'firstName lastName email')
+    .populate('term', 'name academicYear');
+
+  res.status(200).json({ 
+    success: true, 
+    message: 'Assignment updated successfully',
+    classSubject: updatedAssignment 
+  });
 });
 
 // @desc    Delete a class-subject assignment
@@ -232,4 +256,143 @@ exports.getStudentsInSubject = asyncHandler(async (req, res) => {
   }));
 
   res.status(200).json({ success: true, count: students.length, students });
+});
+
+// @desc    Get all subject assignments
+// @route   GET /api/class-subjects
+// @access  Admin
+exports.getAllAssignments = asyncHandler(async (req, res) => {
+  const { academicYear, term, classId, subjectId, teacherId } = req.query;
+
+  console.log('getAllAssignments called with query params:', req.query);
+
+  const filter = {
+    ...(academicYear && { academicYear }),
+    ...(term && { term }),
+    ...(classId && { class: classId }),
+    ...(subjectId && { subject: subjectId }),
+    ...(teacherId && { teacher: teacherId }),
+  };
+
+  console.log('Filter being applied:', filter);
+
+  // First, let's see total count without any filters
+  const totalCount = await ClassSubject.countDocuments({});
+  console.log('Total ClassSubject documents in database:', totalCount);
+
+  const assignments = await ClassSubject.find(filter)
+    .populate('class', 'name stream')
+    .populate('subject', 'name code category group')
+    .populate('teacher', 'firstName lastName email')
+    .populate('term', 'name academicYear')
+    .sort({ academicYear: -1, 'class.name': 1, 'subject.name': 1 })
+    .lean();
+
+  console.log('Assignments found after filtering:', assignments.length);
+  
+  if (assignments.length > 0) {
+    console.log('Sample assignment:', JSON.stringify(assignments[0], null, 2));
+  }
+
+  res.status(200).json({
+    success: true,
+    count: assignments.length,
+    assignments
+  });
+});
+
+// @desc    Fix missing core subjects for existing students
+// @route   POST /api/admin/class-subjects/fix-missing-core
+// @access  Admin
+exports.fixMissingCoreSubjects = asyncHandler(async (req, res) => {
+  const { classId, academicYear, termId } = req.body;
+  
+  if (!classId || !academicYear) {
+    res.status(400);
+    throw new Error('Class ID and Academic Year are required.');
+  }
+
+  console.log(`🔧 Fixing missing core subjects for class ${classId}, year ${academicYear}`);
+
+  try {
+    // 1. Find all core subjects assigned to teachers for this class/year
+    const coreClassSubjects = await ClassSubject.find({
+      class: classId,
+      academicYear: academicYear,
+      ...(termId && { term: termId }),
+      isActive: true
+    }).populate('subject', 'name code category');
+    
+    const coreSubjectAssignments = coreClassSubjects.filter(cs => 
+      cs.subject && cs.subject.category === 'Core'
+    );
+    
+    if (coreSubjectAssignments.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No core subjects found assigned to teachers for this class and academic year.'
+      });
+    }
+
+    const coreSubjectIds = coreSubjectAssignments.map(cs => cs._id.toString());
+    console.log(`📚 Found ${coreSubjectIds.length} core subjects:`, 
+      coreSubjectAssignments.map(cs => cs.subject.name));
+
+    // 2. Find all students in this class for the academic year
+    const studentClassEntries = await StudentClass.find({
+      class: classId,
+      academicYear: academicYear,
+      status: 'Active'
+    }).populate('student', 'firstName lastName admissionNumber');
+
+    if (studentClassEntries.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No active students found in this class for the academic year.'
+      });
+    }
+
+    console.log(`👥 Found ${studentClassEntries.length} students in the class`);
+
+    // 3. Update each student with missing core subjects
+    let updatedStudents = 0;
+    let totalSubjectsAdded = 0;
+
+    for (const studentEntry of studentClassEntries) {
+      const currentSubjects = studentEntry.subjects.map(String);
+      const missingCoreSubjects = coreSubjectIds.filter(coreId => 
+        !currentSubjects.includes(coreId)
+      );
+
+      if (missingCoreSubjects.length > 0) {
+        // Add missing core subjects
+        studentEntry.subjects = [...new Set([...studentEntry.subjects.map(String), ...missingCoreSubjects])];
+        await studentEntry.save();
+        
+        updatedStudents++;
+        totalSubjectsAdded += missingCoreSubjects.length;
+        
+        console.log(`✅ Updated ${studentEntry.student.firstName} ${studentEntry.student.lastName} - added ${missingCoreSubjects.length} core subjects`);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully updated ${updatedStudents} students with missing core subjects.`,
+      details: {
+        studentsUpdated: updatedStudents,
+        totalSubjectsAdded: totalSubjectsAdded,
+        coreSubjectsAvailable: coreSubjectAssignments.map(cs => ({
+          name: cs.subject.name,
+          code: cs.subject.code,
+          id: cs._id
+        }))
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fixing missing core subjects:', error);
+    res.status(500);
+    throw new Error('Failed to fix missing core subjects: ' + error.message);
+  }
 });

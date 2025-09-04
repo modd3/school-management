@@ -8,6 +8,7 @@ import LoadingSpinner from '../../components/Spinner';
 import { useAuth } from '../../context/AuthContext';
 import { getMyClassAsClassTeacher } from '../../api/classes';
 import { FaBookOpen, FaPrint, FaFilePdf } from 'react-icons/fa';
+import { calculateGradeAndPoints } from '../../utils/grading';
 
 const ClassExamResultsPage = () => {
   const { classId, termId, examType } = useParams();
@@ -359,6 +360,108 @@ results?.results.forEach(studentResult => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Subject Means Summary */}
+      <div className="mt-6 bg-gray-50 rounded-lg p-4 print:bg-white print:border print:border-gray-300 print:mt-4 print:p-2 print:break-avoid">
+        <h3 className="text-lg font-semibold mb-3 print:text-base print:mb-2 print:text-black">
+          Subject Means Summary {allSubjects.length > 0 ? `(${allSubjects.length} subjects)` : '(No subjects found)'}
+        </h3>
+        {allSubjects.length === 0 && results?.results?.length > 0 && (
+          <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 rounded-lg print:hidden">
+            <p className="text-sm text-yellow-800">
+              <strong>Debug Info:</strong> Found {results.results.length} students but no subjects. 
+              Check if student results have the correct subject data structure.
+            </p>
+          </div>
+        )}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 print:divide-black">
+            <thead className="bg-gray-100 print:bg-gray-50">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-black print:px-1 print:py-1">Subject</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider print:text-black print:px-1 print:py-1">Students</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider print:text-black print:px-1 print:py-1">Mean Marks</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider print:text-black print:px-1 print:py-1">Mean %</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider print:text-black print:px-1 print:py-1">Grade</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider print:text-black print:px-1 print:py-1">Points</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200 print:divide-black">
+              {allSubjects.map((subjectId, index) => {
+                // Calculate subject statistics
+                const subjectResults = results.results
+                  .map(studentResult => studentResult.results.find(s => s.subject === subjectId))
+                  .filter(Boolean);
+                
+                const studentsCount = subjectResults.length;
+                const totalMarks = subjectResults.reduce((sum, result) => sum + result.marksObtained, 0);
+                const totalOutOf = subjectResults.reduce((sum, result) => sum + result.outOf, 0);
+                const totalPercentage = subjectResults.reduce((sum, result) => sum + result.percentage, 0);
+                
+                const meanMarks = studentsCount > 0 ? (totalMarks / studentsCount) : 0;
+                const meanOutOf = studentsCount > 0 ? (totalOutOf / studentsCount) : 0;
+                const meanPercentage = studentsCount > 0 ? (totalPercentage / studentsCount) : 0;
+                
+                // Use the grading utility to calculate grade and points
+                const gradeInfo = studentsCount > 0 ? calculateGradeAndPoints(meanPercentage) : { grade: '--', points: '--' };
+                
+                return (
+                  <tr key={subjectId} className={index % 2 === 0 ? 'bg-gray-50 print:bg-white' : 'bg-white'}>
+                    <td className="px-3 py-2 text-sm font-medium text-gray-900 print:text-2xs print:px-1 print:py-1">
+                      {subjectNames[subjectId] || subjectId}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-center text-gray-600 print:text-2xs print:px-1 print:py-1">
+                      {studentsCount}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-center font-semibold text-gray-900 print:text-2xs print:px-1 print:py-1">
+                      {studentsCount > 0 ? `${meanMarks.toFixed(1)}/${meanOutOf.toFixed(0)}` : '--'}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-center font-semibold text-gray-900 print:text-2xs print:px-1 print:py-1">
+                      {studentsCount > 0 ? `${meanPercentage.toFixed(1)}%` : '--'}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-center font-semibold text-blue-600 print:text-2xs print:px-1 print:py-1 print:text-black">
+                      {gradeInfo.grade}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-center font-semibold text-gray-900 print:text-2xs print:px-1 print:py-1">
+                      {typeof gradeInfo.points === 'number' ? gradeInfo.points.toFixed(1) : gradeInfo.points}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Overall Class Summary */}
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200 print:bg-white print:border-gray-300">
+          <h4 className="text-sm font-semibold text-blue-800 mb-2 print:text-black">
+            Class Summary
+          </h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="text-gray-600 print:text-black">Total Students:</span>
+              <span className="font-semibold ml-2 print:text-black">{results.results.length}</span>
+            </div>
+            <div>
+              <span className="text-gray-600 print:text-black">Class Average:</span>
+              <span className="font-semibold ml-2 print:text-black">
+                {results.results.length > 0 ? 
+                  (results.results.reduce((sum, student) => sum + student.averagePercentage, 0) / results.results.length).toFixed(1) + '%' : 
+                  '--'
+                }
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-600 print:text-black">Subjects Offered:</span>
+              <span className="font-semibold ml-2 print:text-black">{allSubjects.length}</span>
+            </div>
+            <div>
+              <span className="text-gray-600 print:text-black">Exam Type:</span>
+              <span className="font-semibold ml-2 print:text-black">{results.examType}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

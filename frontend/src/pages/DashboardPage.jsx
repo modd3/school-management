@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getTerms, getTeacherTerms } from '../api/terms';
+import { getTerms, getTeacherTerms, getCurrentTerm } from '../api/terms';
 import { getClasses, getTeacherClasses } from '../api/classes';
 import { useNavigate, Link } from 'react-router-dom';
 import {
@@ -14,6 +14,7 @@ import DashboardSection from '../components/DashboardSection';
 const DashboardPage = () => {
   const { user, logout } = useAuth();
   const [termId, setTermId] = useState('');
+  const [currentTerm, setCurrentTerm] = useState(null);
   const [terms, setTerms] = useState([]);
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,37 +24,51 @@ const DashboardPage = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        let termsRes, classesRes;
+        let termsRes, classesRes, currentTermRes;
         
         if (user.role === 'admin') {
-          [termsRes, classesRes] = await Promise.all([
+          [termsRes, classesRes, currentTermRes] = await Promise.all([
             getTerms(),
-            getClasses()
+            getClasses(),
+            getCurrentTerm().catch(err => ({ success: false, error: err }))
           ]);
         } else if (user.role === 'teacher') {
-          [termsRes, classesRes] = await Promise.all([
+          [termsRes, classesRes, currentTermRes] = await Promise.all([
             getTeacherTerms(),
-            getTeacherClasses()
+            getTeacherClasses(),
+            getCurrentTerm().catch(err => ({ success: false, error: err }))
           ]);
         } else {
-          termsRes = await getTerms();
+          [termsRes, currentTermRes] = await Promise.all([
+            getTerms(),
+            getCurrentTerm().catch(err => ({ success: false, error: err }))
+          ]);
           classesRes = { classes: [] };
         }
         
         setTerms(termsRes.terms || []);
         setClasses(classesRes.classes || []);
         
-        const today = new Date();
-        const currentTerm = termsRes.terms?.find(term => {
-          const startDate = new Date(term.startDate);
-          const endDate = new Date(term.endDate);
-          return today >= startDate && today <= endDate;
-        });
-        
-        if (currentTerm) {
-          setTermId(currentTerm._id);
-        } else if (termsRes.terms?.length > 0) {
-          setTermId(termsRes.terms[0]._id);
+        // Use the current term from the API if available
+        if (currentTermRes.success && currentTermRes.term) {
+          setCurrentTerm(currentTermRes.term);
+          setTermId(currentTermRes.term._id);
+        } else {
+          // Fallback to manual detection or first term
+          const today = new Date();
+          const fallbackTerm = termsRes.terms?.find(term => {
+            const startDate = new Date(term.startDate);
+            const endDate = new Date(term.endDate);
+            return today >= startDate && today <= endDate;
+          });
+          
+          if (fallbackTerm) {
+            setCurrentTerm(fallbackTerm);
+            setTermId(fallbackTerm._id);
+          } else if (termsRes.terms?.length > 0) {
+            setCurrentTerm(termsRes.terms[0]);
+            setTermId(termsRes.terms[0]._id);
+          }
         }
       } catch (err) {
         console.error('Failed to fetch data', err);
@@ -193,6 +208,7 @@ const DashboardPage = () => {
       { to: '/admin/classes', label: 'Manage Classes', icon: <FaBookOpen /> },
       { to: '/admin/subjects', label: 'Manage Subjects', icon: <FaBookOpen /> },
       { to: '/admin/assign-class-subject', label: 'Assign Class Subjects', icon: <FaClipboardList /> },
+      { to: '/admin/subject-assignments', label: 'View Subject Assignments', icon: <FaChalkboardTeacher /> },
       { to: '/admin/terms', label: 'Manage Terms', icon: <FaCalendarAlt /> },
       { 
         onClick: () => handleViewClassResults(), 
@@ -381,11 +397,39 @@ const DashboardPage = () => {
         )}
 
         {/* Current Term Info */}
-        {termId && terms.length > 0 && (
+        {currentTerm && (
           <div className="bg-blue-50 rounded-xl border border-blue-200 p-4">
-            <h3 className="text-sm font-medium text-blue-800 mb-2">Current Academic Term</h3>
-            <p className="text-blue-700">
-              {terms.find(t => t._id === termId)?.name || 'Unknown Term'}
+            <h3 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
+              <FaCalendarAlt /> Current Academic Term
+            </h3>
+            <div className="space-y-1">
+              <p className="text-blue-900 font-semibold">
+                {currentTerm.name} - {currentTerm.academicYear}
+              </p>
+              <p className="text-blue-700 text-sm">
+                {new Date(currentTerm.startDate).toLocaleDateString()} - {new Date(currentTerm.endDate).toLocaleDateString()}
+              </p>
+              {currentTerm.isCurrent && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Active Term
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Show message if no current term */}
+        {!currentTerm && !loading && (
+          <div className="bg-yellow-50 rounded-xl border border-yellow-200 p-4">
+            <h3 className="text-sm font-medium text-yellow-800 mb-2 flex items-center gap-2">
+              <FaCalendarAlt /> No Current Term Set
+            </h3>
+            <p className="text-yellow-700 text-sm">
+              {user?.role === 'admin' ? (
+                <>Please <Link to="/admin/terms" className="underline font-semibold">manage terms</Link> to set up the current academic term.</>
+              ) : (
+                'Please contact the administrator to set up the current academic term.'
+              )}
             </p>
           </div>
         )}

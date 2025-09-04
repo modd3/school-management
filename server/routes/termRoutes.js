@@ -2,11 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/authMiddleware');
 
-const {getAllTerms} = require('../controllers/termController');
+const { getAllTerms, getCurrentTerm } = require('../controllers/termController');
 
 // Protect all term routes
 router.use(protect);
-// routes/termRoutes.js
-router.get('/', protect, getAllTerms); // make it accessible to all roles
+
+// Public term routes (for all authenticated users)
+router.get('/', getAllTerms); // Get all terms
+router.get('/current', getCurrentTerm); // Get current term
 
 module.exports = router;
