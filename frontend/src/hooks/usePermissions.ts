@@ -152,7 +152,37 @@ function usePermissions(): PermissionCheck {
     if (!isAuthenticated || !user) return [];
     
     // Get permissions from user object or role-based permissions
-    const explicitPermissions = user.permissions || [];
+    let explicitPermissions: string[] = [];
+    
+    // Handle object-based permissions structure from the backend
+    if (user.permissions && typeof user.permissions === 'object') {
+      const perms = user.permissions;
+      
+      // Convert object-based permissions to array format
+      if (perms.academic) {
+        if (perms.academic.canEnterResults) explicitPermissions.push(PERMISSIONS.ENTER_RESULTS);
+        if (perms.academic.canEditResults) explicitPermissions.push(PERMISSIONS.EDIT_RESULTS);
+        if (perms.academic.canViewAllResults) explicitPermissions.push(PERMISSIONS.VIEW_ALL_RESULTS);
+        if (perms.academic.canPublishResults) explicitPermissions.push(PERMISSIONS.PUBLISH_RESULTS);
+      }
+      
+      if (perms.administrative) {
+        if (perms.administrative.canManageUsers) explicitPermissions.push(PERMISSIONS.MANAGE_USERS);
+        if (perms.administrative.canManageClasses) explicitPermissions.push(PERMISSIONS.MANAGE_CLASSES);
+        if (perms.administrative.canManageSubjects) explicitPermissions.push(PERMISSIONS.MANAGE_SUBJECTS);
+        if (perms.administrative.canViewReports) explicitPermissions.push(PERMISSIONS.VIEW_REPORTS);
+        if (perms.administrative.canExportData) explicitPermissions.push(PERMISSIONS.EXPORT_DATA);
+        if (perms.administrative.canManageCalendar) explicitPermissions.push(PERMISSIONS.MANAGE_ACADEMIC_CALENDAR);
+      }
+      
+      if (perms.financial) {
+        // Add financial permission mappings if needed
+      }
+    } else if (Array.isArray(user.permissions)) {
+      // Handle array-based permissions (fallback)
+      explicitPermissions = user.permissions;
+    }
+    
     const rolePermissions = user.role ? ROLE_PERMISSIONS[user.role as keyof typeof ROLE_PERMISSIONS] || [] : [];
     
     // Combine explicit permissions with role-based permissions

@@ -24,7 +24,10 @@ import {
   FaUserPlus
 } from 'react-icons/fa';
 import { useAuth, usePermissions, useDocumentTitle } from '@/hooks';
+import { useGetDashboardStatsQuery, useGetRecentActivityQuery } from '@/store/api/dashboardApi';
 import { DashboardSection } from '@/components/DashboardSection';
+import { formatDistanceToNow } from 'date-fns';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 interface DashboardLink {
   to?: string;
@@ -83,34 +86,34 @@ const ModernDashboardPage: React.FC = () => {
       description: 'Subject creation and management'
     },
     { 
-      to: '/admin/assign-class-subjects', 
+      to: '/admin/class-subjects', 
       label: 'Assign Class Subjects', 
       icon: <FaClipboard />,
       description: 'Link subjects to classes'
     },
     { 
-      to: '/admin/terms', 
-      label: 'Manage Terms', 
+      to: '/admin/academic-calendar', 
+      label: 'Academic Calendar', 
       icon: <FaCalendarAlt />,
-      description: 'Academic calendar management'
+      description: 'Manage academic calendar and terms'
     },
     { 
-      to: '/admin/analytics', 
-      label: 'School Analytics', 
+      to: '/admin/reports', 
+      label: 'Reports & Analytics', 
       icon: <FaChartPie />,
-      description: 'Performance analytics and reports'
+      description: 'View reports and analytics'
     }
   ];
 
   const getTeacherLinks = (): DashboardLink[] => [
     { 
-      to: '/teacher/enter-marks', 
+      to: '/teacher/results/enter', 
       label: 'Enter Results', 
       icon: <FaClipboardList />,
       description: 'Enter student exam results'
     },
     { 
-      to: '/teacher/my-results', 
+      to: '/teacher/results/entered-by-me', 
       label: 'My Results', 
       icon: <FaFileAlt />,
       description: 'View results I have entered'
@@ -122,16 +125,22 @@ const ModernDashboardPage: React.FC = () => {
       description: 'Subjects assigned to me'
     },
     { 
-      to: '/teacher/class-reports', 
-      label: 'Class Reports', 
-      icon: <FaChartBar />,
-      description: 'Generate class performance reports'
+      to: '/teacher/attendance', 
+      label: 'Mark Attendance', 
+      icon: <FaUserCheck />,
+      description: 'Mark student attendance'
     },
     { 
       to: '/teacher/timetable', 
       label: 'My Timetable', 
       icon: <FaClock />,
       description: 'View my teaching schedule'
+    },
+    { 
+      to: '/teacher/reports', 
+      label: 'Class Reports', 
+      icon: <FaChartBar />,
+      description: 'View class performance reports'
     }
   ];
 
@@ -210,15 +219,64 @@ const ModernDashboardPage: React.FC = () => {
   );
 
   const renderQuickStats = () => {
-    // This would typically come from an API call
-    const stats = [
-      { label: 'Total Students', value: '1,234', icon: <FaUserGraduate />, color: 'bg-green-500' },
-      { label: 'Total Teachers', value: '89', icon: <FaChalkboardTeacher />, color: 'bg-blue-500' },
-      { label: 'Active Classes', value: '24', icon: <FaSchool />, color: 'bg-purple-500' },
-      { label: 'Subjects', value: '15', icon: <FaBook />, color: 'bg-orange-500' },
-    ];
-
+    const { data: dashboardStats, isLoading: statsLoading, error: statsError } = useGetDashboardStatsQuery(undefined, {
+      skip: !isAdmin()
+    });
+    
     if (!isAdmin()) return null;
+    
+    if (statsLoading) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white rounded-xl shadow-lg p-6 animate-pulse">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="h-4 bg-gray-200 rounded w-20 mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded w-16"></div>
+                </div>
+                <div className="h-12 w-12 bg-gray-200 rounded-lg"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    
+    if (statsError) {
+      return (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+          <p className="text-red-700 text-sm">Failed to load dashboard statistics</p>
+        </div>
+      );
+    }
+
+    const stats = [
+      { 
+        label: 'Total Students', 
+        value: dashboardStats?.data?.totalStudents?.toLocaleString() || '0', 
+        icon: <FaUserGraduate />, 
+        color: 'bg-green-500' 
+      },
+      { 
+        label: 'Total Teachers', 
+        value: dashboardStats?.data?.totalTeachers?.toLocaleString() || '0', 
+        icon: <FaChalkboardTeacher />, 
+        color: 'bg-blue-500' 
+      },
+      { 
+        label: 'Active Classes', 
+        value: dashboardStats?.data?.totalClasses?.toLocaleString() || '0', 
+        icon: <FaSchool />, 
+        color: 'bg-purple-500' 
+      },
+      { 
+        label: 'Subjects', 
+        value: dashboardStats?.data?.totalSubjects?.toLocaleString() || '0', 
+        icon: <FaBook />, 
+        color: 'bg-orange-500' 
+      },
+    ];
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -313,41 +371,82 @@ const ModernDashboardPage: React.FC = () => {
     );
   };
 
-  const renderRecentActivity = () => (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <h2 className="text-xl font-bold text-gray-900 mb-6">Recent Activity</h2>
-      <div className="space-y-4">
-        {/* This would come from an API call */}
-        <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-          <div className="bg-green-100 p-2 rounded-lg">
-            <FaClipboardList className="text-green-600" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900">Results entered for Mathematics</p>
-            <p className="text-xs text-gray-500">2 hours ago</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-          <div className="bg-blue-100 p-2 rounded-lg">
-            <FaUserGraduate className="text-blue-600" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900">New student registered</p>
-            <p className="text-xs text-gray-500">5 hours ago</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-          <div className="bg-purple-100 p-2 rounded-lg">
-            <FaFileAlt className="text-purple-600" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900">Report card generated</p>
-            <p className="text-xs text-gray-500">1 day ago</p>
-          </div>
+  const renderRecentActivity = () => {
+    const { data: recentActivity, isLoading: activityLoading, error: activityError } = useGetRecentActivityQuery({ limit: 5 });
+    
+    const getActivityIcon = (type: string) => {
+      switch (type) {
+        case 'result_entry':
+          return <FaClipboardList className="text-green-600" />;
+        case 'user_creation':
+          return <FaUserPlus className="text-blue-600" />;
+        case 'attendance':
+          return <FaUserCheck className="text-orange-600" />;
+        case 'report_generation':
+          return <FaFileAlt className="text-purple-600" />;
+        default:
+          return <FaClipboardList className="text-gray-600" />;
+      }
+    };
+    
+    const getActivityBgColor = (type: string) => {
+      switch (type) {
+        case 'result_entry':
+          return 'bg-green-100';
+        case 'user_creation':
+          return 'bg-blue-100';
+        case 'attendance':
+          return 'bg-orange-100';
+        case 'report_generation':
+          return 'bg-purple-100';
+        default:
+          return 'bg-gray-100';
+      }
+    };
+    
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-6">Recent Activity</h2>
+        <div className="space-y-4">
+          {activityLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg animate-pulse">
+                  <div className="h-8 w-8 bg-gray-200 rounded-lg"></div>
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : activityError ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 text-sm">Unable to load recent activity</p>
+            </div>
+          ) : recentActivity?.data && recentActivity.data.length > 0 ? (
+            recentActivity.data.map((activity) => (
+              <div key={activity.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div className={`${getActivityBgColor(activity.type)} p-2 rounded-lg`}>
+                  {getActivityIcon(activity.type)}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{activity.description}</p>
+                  <p className="text-xs text-gray-500">
+                    {activity.user} • {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                  </p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500 text-sm">No recent activity</p>
+            </div>
+          )}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (!user) {
     return (

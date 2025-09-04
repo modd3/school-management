@@ -44,6 +44,7 @@ export const baseApi = createApi({
     'Parent',
     'Class',
     'Subject',
+    'ClassSubject',
     'Result',
     'Progress',
     'Attendance',

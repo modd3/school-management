@@ -12,6 +12,7 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const classRoutes = require('./routes/classRoutes');
 const classSubjectRoutes = require('./routes/classSubjectRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 const cors = require('cors');
 const morgan = require('morgan'); // For logging requests
 const studentClassRoutes = require('./routes/studentClassRoutes');
@@ -42,6 +43,7 @@ app.use(morgan('combined')); // Logging middleware for development
 
 // Mount routes
 app.use('/api/auth', authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/parent', parentRoutes);

@@ -100,6 +100,61 @@ router.post('/attendance/mark', hasPermission('administrative', 'canViewReports'
 router.get('/attendance/student/:studentId/:academicYear', hasPermission('administrative', 'canViewReports'), getStudentAttendanceHistory);
 router.get('/attendance/class/:classId/:academicYear', hasPermission('administrative', 'canViewReports'), getClassAttendanceSummary);
 
+// Teacher attendance routes
+router.get('/attendance', hasPermission('administrative', 'canViewReports'), async (req, res) => {
+  try {
+    const teacherId = req.user.profileId;
+    const Teacher = require('../models/Teacher');
+    const Class = require('../models/Class');
+    
+    // Get teacher's assigned classes
+    const teacher = await Teacher.findById(teacherId).populate('classTaught');
+    if (!teacher) {
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+    
+    // Get attendance summary for teacher's classes
+    const classes = await Class.find({ classTeacher: teacherId }).populate('students');
+    
+    res.json({
+      success: true,
+      data: {
+        teacher: teacher,
+        classes: classes,
+        message: 'Teacher attendance data'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Teacher reports route
+router.get('/reports', hasPermission('academic', 'canViewAllResults'), async (req, res) => {
+  try {
+    const teacherId = req.user.profileId;
+    const { getClassFinalReports } = require('../controllers/resultController');
+    
+    // Get teacher's classes and their reports
+    const Teacher = require('../models/Teacher');
+    const teacher = await Teacher.findById(teacherId);
+    
+    if (!teacher) {
+      return res.status(404).json({ message: 'Teacher not found' });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        message: 'Teacher reports available',
+        teacher: teacher
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Timetable Management
 router.get('/timetable/class/:classId/:academicYear/:termNumber', hasPermission('administrative', 'canViewReports'), getClassTimetable);
 router.get('/timetable/teacher/:teacherId/:academicYear/:termNumber', hasPermission('administrative', 'canViewReports'), getTeacherTimetable);

@@ -503,6 +503,11 @@ export interface DashboardStats {
   totalSubjects: number;
   activeAcademicYear: string;
   currentTerm: string;
+  recentActivity: {
+    results: number;
+    attendance: number;
+    users: number;
+  };
 }
 
 export interface RecentActivity {
@@ -510,6 +515,7 @@ export interface RecentActivity {
   type: 'result_entry' | 'user_creation' | 'attendance' | 'report_generation';
   description: string;
   user: string;
+  student?: string;
   timestamp: Date;
   status: 'success' | 'warning' | 'error';
 }

@@ -34,8 +34,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={fallbackPath} state={{ from: location }} replace />;
   }
 
-  // Check if user's account is active
-  if (!user.isActive) {
+  // Check if user's account is active (default to active if field is missing)
+  if (user.isActive === false) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-red-50 dark:bg-red-900/20">
         <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md">

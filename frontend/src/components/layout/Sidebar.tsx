@@ -51,7 +51,8 @@ const navigation: NavigationItem[] = [
       { name: 'Classes', href: '/admin/classes', icon: FaSchool },
       { name: 'Subjects', href: '/admin/subjects', icon: FaBook },
       { name: 'Academic Calendar', href: '/admin/academic-calendar', icon: FaCalendarAlt },
-      { name: 'Assign Subjects', href: '/admin/assign-class-subjects', icon: FaClipboard },
+      { name: 'Class Subjects', href: '/admin/class-subjects', icon: FaClipboard },
+      { name: 'Reports', href: '/admin/reports', icon: FaChartBar },
     ],
   },
   {
@@ -60,7 +61,7 @@ const navigation: NavigationItem[] = [
     icon: FaGraduationCap,
     roles: ['admin', 'teacher'],
     children: [
-      { name: 'Enter Results', href: '/teacher/enter-marks', icon: FaClipboardList, roles: ['teacher'] },
+      { name: 'Enter Results', href: '/teacher/results/enter', icon: FaClipboardList, roles: ['teacher'] },
       { name: 'My Results', href: '/teacher/results/entered-by-me', icon: FaClipboardList, roles: ['teacher'] },
       { name: 'Class Results', href: '/teacher/class-results', icon: FaChartBar, roles: ['admin', 'teacher'] },
       { name: 'Final Reports', href: '/teacher/class-final-reports', icon: FaClipboard, roles: ['admin', 'teacher'] },
@@ -244,11 +245,15 @@ export const Sidebar: React.FC = () => {
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3">
             <div className="h-10 w-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
-              {`${user.firstName[0]}${user.lastName[0]}`}
+              {user.firstName && user.lastName 
+                ? `${user.firstName[0]}${user.lastName[0]}` 
+                : user.email ? user.email[0].toUpperCase() : '?'}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                {formatName(user.firstName, user.lastName)}
+                {user.firstName && user.lastName 
+                  ? formatName(user.firstName, user.lastName)
+                  : user.email || 'Unknown User'}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                 {user.role}

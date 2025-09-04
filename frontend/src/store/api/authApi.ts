@@ -25,7 +25,7 @@ export const authApi = baseApi.injectEndpoints({
     // Register endpoint (admin only)
     register: builder.mutation<ApiResponse, RegisterFormData>({
       query: (userData) => ({
-        url: '/admin/users/register',
+        url: '/auth/register',
         method: 'POST',
         body: userData,
       }),

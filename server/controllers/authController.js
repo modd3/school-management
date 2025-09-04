@@ -37,6 +37,14 @@ const sendTokenResponse = (user, statusCode, res) => {
                 email: user.email,
                 role: user.role,
                 profileId: user.profileId,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                isActive: user.isActive !== undefined ? user.isActive : true, // Default to true if not set
+                isLocked: user.isLocked || false, // Default to false if not set
+                accountLocked: user.accountLocked || false, // Also include accountLocked for compatibility
+                emailVerified: user.emailVerified || false,
+                permissions: user.permissions,
+                preferences: user.preferences,
                 profile: user.profile // This should be populated by protect middleware on subsequent requests or explicitly returned
             }
         });

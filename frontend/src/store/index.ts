@@ -7,6 +7,7 @@ import { academicApi } from './api/academicApi';
 import { resultsApi } from './api/resultsApi';
 import { attendanceApi } from './api/attendanceApi';
 import { timetableApi } from './api/timetableApi';
+import { dashboardApi } from './api/dashboardApi';
 import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';
 

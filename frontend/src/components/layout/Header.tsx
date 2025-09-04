@@ -151,11 +151,15 @@ export const Header: React.FC = () => {
           <Menu as="div" className="relative">
             <MenuButton className="flex items-center space-x-2 p-2 rounded-md text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
               <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                {user ? `${user.firstName[0]}${user.lastName[0]}` : 'U'}
+                {user && user.firstName && user.lastName 
+                  ? `${user.firstName[0]}${user.lastName[0]}` 
+                  : user?.email ? user.email[0].toUpperCase() : 'U'}
               </div>
               <div className="hidden sm:block text-left">
                 <p className="text-sm font-medium">
-                  {user ? formatName(user.firstName, user.lastName) : 'User'}
+                  {user && user.firstName && user.lastName
+                    ? formatName(user.firstName, user.lastName) 
+                    : user?.email || 'User'}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                   {user?.role}
