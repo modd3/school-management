@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaUserGraduate, FaEdit, FaTrashAlt, FaSearch, FaPlusCircle } from 'react-icons/fa';
+import { FaUserGraduate, FaEdit, FaTrashAlt, FaSearch, FaPlusCircle, FaBook, FaChevronDown, FaChevronUp, FaGraduationCap } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { getStudents, deleteStudent } from '../../api/students';
 //import { getAllParents } from '../../api/parents'; // Keep this if parent info is displayed or used
@@ -10,8 +10,19 @@ export default function ManageStudentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [expandedRows, setExpandedRows] = useState(new Set());
   // const [parentOptions, setParentOptions] = useState([]); // Not directly used in display, can be removed if not needed
   const navigate = useNavigate();
+
+  const toggleRowExpansion = (studentId) => {
+    const newExpandedRows = new Set(expandedRows);
+    if (newExpandedRows.has(studentId)) {
+      newExpandedRows.delete(studentId);
+    } else {
+      newExpandedRows.add(studentId);
+    }
+    setExpandedRows(newExpandedRows);
+  };
 
   // Function to load students from the API
   const loadStudents = async () => {
@@ -94,7 +105,7 @@ export default function ManageStudentsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+      <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row items-center justify-between mb-8 gap-4">
           <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
             <FaUserGraduate className="text-blue-600"/> Manage Students
@@ -122,94 +133,77 @@ export default function ManageStudentsPage() {
         {filteredStudents.length === 0 ? (
           <p className="text-center text-gray-600">No students found.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg shadow-md border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission No.</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class & Stream</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent Contact</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredStudents.map((student) => (
-                  <tr key={student._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10">
-                          {student.studentPhotoUrl ? (
-                            <img className="h-10 w-10 rounded-full" src={student.studentPhotoUrl} alt="" />
-                          ) : (
-                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                              <FaUserGraduate className="text-blue-600" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
+          <div className="space-y-4">
+            {filteredStudents.map((student) => (
+              <div key={student._id} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                {/* Main Student Info Row */}
+                <div className="p-6 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      {/* Student Photo */}
+                      <div className="flex-shrink-0 h-12 w-12">
+                        {student.studentPhotoUrl ? (
+                          <img className="h-12 w-12 rounded-full object-cover" src={student.studentPhotoUrl} alt="" />
+                        ) : (
+                          <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                            <FaUserGraduate className="text-blue-600" size={20} />
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Student Basic Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-3">
+                          <h3 className="text-lg font-medium text-gray-900 truncate">
                             {student.firstName} {student.lastName}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {student.email}
-                          </div>
+                          </h3>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            student.gender === 'Male' ? 'bg-blue-100 text-blue-800' :
+                            student.gender === 'Female' ? 'bg-pink-100 text-pink-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {student.gender || 'Not Specified'}
+                          </span>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            student.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {student.isActive !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex items-center space-x-6 text-sm text-gray-500">
+                          <span className="font-mono">{student.admissionNumber}</span>
+                          <span>{student.email}</span>
+                          {student.currentClass && (
+                            <span className="flex items-center">
+                              <FaGraduationCap className="mr-1" />
+                              {student.currentClass.name} {student.academicYear && `(${student.academicYear})`}
+                            </span>
+                          )}
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-mono">
-                      {student.admissionNumber}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {student.currentClass ? (
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {student.currentClass.name}
+                    </div>
+                    
+                    {/* Subject Count & Actions */}
+                    <div className="flex items-center space-x-4">
+                      {student.totalSubjects > 0 && (
+                        <div className="text-center">
+                          <div className="flex items-center text-sm text-gray-600">
+                            <FaBook className="mr-1" />
+                            <span className="font-medium">{student.totalSubjects}</span>
                           </div>
-                          {student.stream && (
-                            <div className="text-sm text-gray-500">
-                              {student.stream} Stream
-                            </div>
-                          )}
+                          <div className="text-xs text-gray-500">subjects</div>
                         </div>
-                      ) : (
-                        <span className="text-gray-400">Not Assigned</span>
                       )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        student.gender === 'Male' ? 'bg-blue-100 text-blue-800' :
-                        student.gender === 'Female' ? 'bg-pink-100 text-pink-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {student.gender || 'Not Specified'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {student.parentContacts && student.parentContacts.length > 0 ? (
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {student.parentContacts[0].firstName} {student.parentContacts[0].lastName}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {student.parentContacts[0].phoneNumber || 'No phone'}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">No Parent</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        student.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {student.isActive !== false ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-center space-x-2">
+                      
+                      <button
+                        onClick={() => toggleRowExpansion(student._id)}
+                        className="text-gray-400 hover:text-gray-600 p-1"
+                        title="View enrollment details"
+                      >
+                        {expandedRows.has(student._id) ? <FaChevronUp /> : <FaChevronDown />}
+                      </button>
+                      
+                      <div className="flex items-center space-x-2">
                         <button
                           onClick={() => handleEditStudent(student._id)}
                           className="text-blue-600 hover:text-blue-900 p-2 rounded-full hover:bg-blue-100 transition-colors"
@@ -225,11 +219,150 @@ export default function ManageStudentsPage() {
                           <FaTrashAlt size={16}/>
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Expandable Details Section */}
+                {expandedRows.has(student._id) && (
+                  <div className="border-t border-gray-200 bg-gray-50 p-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      
+                      {/* Parent Contact Info */}
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 mb-3">Parent Contact</h4>
+                        {student.parentContacts && student.parentContacts.length > 0 ? (
+                          <div className="bg-white rounded-lg p-4 border">
+                            <div className="text-sm">
+                              <div className="font-medium text-gray-900">
+                                {student.parentContacts[0].firstName} {student.parentContacts[0].lastName}
+                              </div>
+                              <div className="text-gray-600 mt-1">
+                                {student.parentContacts[0].phoneNumber && (
+                                  <div>📞 {student.parentContacts[0].phoneNumber}</div>
+                                )}
+                                {student.parentContacts[0].email && (
+                                  <div>✉️ {student.parentContacts[0].email}</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-white rounded-lg p-4 border text-gray-500 text-sm">
+                            No parent contact information
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Class Enrollment History */}
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 mb-3">Class Enrollment</h4>
+                        {student.allClassEnrollments && student.allClassEnrollments.length > 0 ? (
+                          <div className="space-y-2">
+                            {student.allClassEnrollments.slice(0, 3).map((enrollment, index) => (
+                              <div key={enrollment._id} className="bg-white rounded-lg p-3 border flex items-center justify-between">
+                                <div>
+                                  <div className="font-medium text-sm text-gray-900">
+                                    {enrollment.class?.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {enrollment.academicYear} • {enrollment.status}
+                                  </div>
+                                </div>
+                                {index === 0 && enrollment.status === 'Active' && (
+                                  <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                                    Current
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="bg-white rounded-lg p-4 border text-gray-500 text-sm">
+                            No class enrollment found
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Subjects by Term */}
+                      {student.subjectsByTerm && Object.keys(student.subjectsByTerm).length > 0 && (
+                        <div className="lg:col-span-2">
+                          <h4 className="text-sm font-medium text-gray-900 mb-3">Enrolled Subjects by Term</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {Object.entries(student.subjectsByTerm).map(([termName, subjects]) => (
+                              <div key={termName} className="bg-white rounded-lg p-4 border">
+                                <h5 className="font-medium text-sm text-gray-900 mb-2">{termName}</h5>
+                                <div className="space-y-1">
+                                  {subjects.slice(0, 5).map((subjectInfo) => (
+                                    <div key={subjectInfo._id} className="flex items-center justify-between text-xs">
+                                      <span className="text-gray-700 truncate">
+                                        {subjectInfo.subject?.name || 'Unknown Subject'}
+                                      </span>
+                                      <span className={`px-2 py-0.5 rounded text-xs ${
+                                        subjectInfo.subject?.category === 'Core' 
+                                          ? 'bg-blue-100 text-blue-700'
+                                          : 'bg-purple-100 text-purple-700'
+                                      }`}>
+                                        {subjectInfo.subject?.category || 'N/A'}
+                                      </span>
+                                    </div>
+                                  ))}
+                                  {subjects.length > 5 && (
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      +{subjects.length - 5} more subjects
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Subject Summary */}
+                      {(student.coreSubjects?.length > 0 || student.electiveSubjects?.length > 0) && (
+                        <div className="lg:col-span-2">
+                          <h4 className="text-sm font-medium text-gray-900 mb-3">Subject Summary</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {student.coreSubjects?.length > 0 && (
+                              <div className="bg-white rounded-lg p-4 border">
+                                <h5 className="font-medium text-sm text-blue-900 mb-2">Core Subjects ({student.coreSubjects.length})</h5>
+                                <div className="space-y-1">
+                                  {student.coreSubjects.slice(0, 5).map((subject) => (
+                                    <div key={subject._id} className="text-xs text-gray-700">
+                                      {subject.subject?.name}
+                                    </div>
+                                  ))}
+                                  {student.coreSubjects.length > 5 && (
+                                    <div className="text-xs text-gray-500">+{student.coreSubjects.length - 5} more</div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {student.electiveSubjects?.length > 0 && (
+                              <div className="bg-white rounded-lg p-4 border">
+                                <h5 className="font-medium text-sm text-purple-900 mb-2">Elective Subjects ({student.electiveSubjects.length})</h5>
+                                <div className="space-y-1">
+                                  {student.electiveSubjects.slice(0, 5).map((subject) => (
+                                    <div key={subject._id} className="text-xs text-gray-700">
+                                      {subject.subject?.name}
+                                    </div>
+                                  ))}
+                                  {student.electiveSubjects.length > 5 && (
+                                    <div className="text-xs text-gray-500">+{student.electiveSubjects.length - 5} more</div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>

@@ -239,3 +239,28 @@ export const getClassFinalReports = async (classId, termId, role) => {
     throw error;
   }
 }
+
+// Consistent helpers for student class/exam position
+export const getStudentClassPosition = async (classId, termId) => {
+  if (!classId || !termId) throw new Error('classId and termId are required');
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No authentication token found. Please log in.');
+  const res = await fetch(`${API_BASE_URL}/student/class-position/${classId}/${termId}`, {
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Failed to fetch class position');
+  return data; // { position, outOf }
+};
+
+export const getStudentExamPosition = async (classId, termId, examType) => {
+  if (!classId || !termId || !examType) throw new Error('classId, termId and examType are required');
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No authentication token found. Please log in.');
+  const res = await fetch(`${API_BASE_URL}/student/exam-position/${classId}/${termId}/${examType}`, {
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Failed to fetch exam position');
+  return data; // { position, outOf }
+};

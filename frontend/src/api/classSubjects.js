@@ -137,3 +137,23 @@ export const enrollStudentInSubject = async (payload) => {
   });
   return handleResponse(response);
 };
+
+// ✅ Get available electives for a class (deduplicated by subject)
+export const getAvailableElectives = async (classId, academicYear) => {
+  const response = await fetch(`${API_BASE_URL}/admin/students/available-electives/${classId}/${academicYear}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse(response);
+};
+
+// ✅ Get available core subjects for a class (deduplicated by subject)
+export const getAvailableCoreSubjects = async (classId, academicYear) => {
+  const response = await fetch(`${API_BASE_URL}/admin/students/available-core/${classId}/${academicYear}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  });
+  return handleResponse(response);
+};

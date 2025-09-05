@@ -85,3 +85,13 @@ export const getTeacherTerms = async () => {
     });
     return handleResponse(response);
 };
+
+// Public terms endpoint for students and other non-admin users
+export const getPublicTerms = async () => {
+    const response = await fetch(`${API_BASE_URL}/terms`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+    });
+    return handleResponse(response);
+};

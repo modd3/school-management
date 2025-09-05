@@ -290,7 +290,7 @@ const SubjectAssignmentsPage = () => {
                     >
                         <option value="">All Teachers</option>
                         {teachers.map(teacher => (
-                            <option key={teacher._id} value={teacher._id}>
+                            <option key={teacher._id} value={teacher.userId || teacher._id}>
                                 {teacher.firstName} {teacher.lastName}
                             </option>
                         ))}
@@ -380,7 +380,7 @@ const SubjectAssignmentsPage = () => {
                                 >
                                     <option value="">Select Teacher</option>
                                     {teachers.map(teacher => (
-                                        <option key={teacher._id} value={teacher._id}>
+                                        <option key={teacher._id} value={teacher.userId || teacher._id}>
                                             {teacher.firstName} {teacher.lastName}
                                         </option>
                                     ))}

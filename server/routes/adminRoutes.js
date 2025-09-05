@@ -16,7 +16,9 @@ const {
 // Student Management (CRUD & Assignments)
 const {
     createStudent, getAllStudents, getStudentById, updateStudent, deleteStudent,
-    assignStudentToClass // For assigning students to classes
+    assignStudentToClass, // For assigning students to classes
+    getAvailableElectives, // For getting available electives for student creation
+    getAvailableCoreSubjects // For getting available core subjects for student creation
 } = require('../controllers/studentController');
 
 // Teacher Management (CRUD & Assignments)
@@ -87,6 +89,8 @@ router.get('/students/:id', getStudentById);
 router.put('/students/:id', updateStudent);
 router.delete('/students/:id', deleteStudent); // Deactivates student profile and associated user
 router.put('/students/:studentId/assign-class', assignStudentToClass); // Assign student to a specific class
+router.get('/students/available-electives/:classId/:academicYear', getAvailableElectives); // Get available electives for student creation
+router.get('/students/available-core/:classId/:academicYear', getAvailableCoreSubjects); // Get available core subjects for student creation
 
 // 3. Teacher Management (CRUD & Assignments)
 router.post('/teachers', createTeacher);

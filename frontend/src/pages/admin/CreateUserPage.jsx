@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { registerUser } from '../../api/auth';
 import { getClasses } from '../../api/classes';
 import { getAllParents } from '../../api/parents';
-import { getClassSubjectsByClass, enrollStudentInSubject } from '../../api/classSubjects'; // Import enrollStudentInSubject
+import { getClassSubjectsByClass, getAvailableElectives, getAvailableCoreSubjects } from '../../api/classSubjects'; // Import both old and new API functions
 import { FaUserPlus } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
@@ -32,12 +32,14 @@ const CreateUserPage = () => {
     gender: '',
     parentId: '',
     studentPhotoUrl: '',
-    selectedElectives: {}, // { groupName: classSubjectId }
+    selectedElectives: {}, // { groupName: [classSubjectId1, classSubjectId2, ...] }
   });
 
   const [classes, setClasses] = useState([]);
   const [parents, setParents] = useState([]);
-  const [classSubjects, setClassSubjects] = useState([]);
+  const [classSubjects, setClassSubjects] = useState([]); // Keep for backward compatibility
+  const [availableElectives, setAvailableElectives] = useState({}); // New state for deduplicated electives
+  const [availableCoreSubjects, setAvailableCoreSubjects] = useState([]); // New state for deduplicated core subjects
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -61,22 +63,41 @@ const CreateUserPage = () => {
     const loadSubjects = async () => {
       if (!formData.classId || !formData.academicYear || formData.academicYear === 'undefined') {
         setClassSubjects([]);
+        setAvailableElectives({});
+        setAvailableCoreSubjects([]);
         setFormData(prev => ({ ...prev, selectedElectives: {} }));
         return;
       }
       
       setLoading(true);
       try {
-        console.log('Loading subjects for class:', formData.classId, 'academic year:', formData.academicYear);
-        const res = await getClassSubjectsByClass(formData.classId, formData.academicYear);
-        console.log('API Response for getClassSubjectsByClass:', res);
-        setClassSubjects(res.classSubjects || []);
+        console.log('Loading deduplicated subjects for class:', formData.classId, 'academic year:', formData.academicYear);
+        
+        // Load both electives and core subjects using new APIs
+        const [electivesRes, coreRes] = await Promise.all([
+          getAvailableElectives(formData.classId, formData.academicYear),
+          getAvailableCoreSubjects(formData.classId, formData.academicYear)
+        ]);
+        
+        console.log('API Response for getAvailableElectives:', electivesRes);
+        console.log('API Response for getAvailableCoreSubjects:', coreRes);
+        
+        // Set the new deduplicated data
+        setAvailableElectives(electivesRes.electivesByGroup || {});
+        setAvailableCoreSubjects(coreRes.allCoreSubjects || []);
+        
+        // Keep old API call for backward compatibility in enrollment logic
+        const oldRes = await getClassSubjectsByClass(formData.classId, formData.academicYear);
+        setClassSubjects(oldRes.classSubjects || []);
+        
         // Reset electives when class changes
         setFormData(prev => ({ ...prev, selectedElectives: {} }));
       } catch (err) {
-        console.error('Error loading class subjects:', err);
-        toast.error('Failed to load class subjects');
+        console.error('Error loading subjects:', err);
+        toast.error('Failed to load subjects');
         setClassSubjects([]);
+        setAvailableElectives({});
+        setAvailableCoreSubjects([]);
       } finally {
         setLoading(false);
       }
@@ -89,38 +110,60 @@ const CreateUserPage = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleElectiveChange = (group, value) => {
-    setFormData(prev => ({
-      ...prev,
-      selectedElectives: {
-        ...prev.selectedElectives,
-        [group]: value,
-      },
-    }));
+  const handleElectiveChange = (group, subjectId, isChecked) => {
+    setFormData(prev => {
+      const currentSelections = prev.selectedElectives[group] || [];
+      let newSelections;
+      
+      if (isChecked) {
+        // Add to selections if not already present
+        newSelections = currentSelections.includes(subjectId) 
+          ? currentSelections 
+          : [...currentSelections, subjectId];
+      } else {
+        // Remove from selections
+        newSelections = currentSelections.filter(id => id !== subjectId);
+      }
+      
+      return {
+        ...prev,
+        selectedElectives: {
+          ...prev.selectedElectives,
+          [group]: newSelections,
+        },
+      };
+    });
   };
 
-  // Group elective subjects by their group
-  const electivesByGroup = {};
-  classSubjects
-    .filter(cs => {
-      return cs.subject && 
-             cs.subject.category && 
-             cs.subject.category.toLowerCase() === 'elective' && 
-             cs.subject.isActive !== false;
-    })
-    .forEach(cs => {
-      const group = cs.subject.group || 'General Electives';
-      if (!electivesByGroup[group]) electivesByGroup[group] = [];
-      electivesByGroup[group].push(cs);
-    });
+  // Use deduplicated data if available, otherwise fall back to old logic
+  const electivesByGroup = Object.keys(availableElectives).length > 0 
+    ? availableElectives 
+    : (() => {
+        const fallback = {};
+        classSubjects
+          .filter(cs => {
+            return cs.subject && 
+                   cs.subject.category && 
+                   cs.subject.category.toLowerCase() === 'elective' && 
+                   cs.subject.isActive !== false;
+          })
+          .forEach(cs => {
+            const group = cs.subject.group || 'General Electives';
+            if (!fallback[group]) fallback[group] = [];
+            fallback[group].push(cs);
+          });
+        return fallback;
+      })();
 
-  // Get core subjects for display (optional)
-  const coreSubjects = classSubjects
-    .filter(cs => cs.subject && 
-                  cs.subject.category && 
-                  cs.subject.category.toLowerCase() === 'core' && 
-                  cs.subject.isActive !== false)
-    .map(cs => cs.subject.name);
+  // Get core subjects for display using deduplicated data if available
+  const coreSubjects = availableCoreSubjects.length > 0
+    ? availableCoreSubjects.map(cs => cs.name)
+    : classSubjects
+        .filter(cs => cs.subject && 
+                      cs.subject.category && 
+                      cs.subject.category.toLowerCase() === 'core' && 
+                      cs.subject.isActive !== false)
+        .map(cs => cs.subject.name);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -144,26 +187,18 @@ const CreateUserPage = () => {
       Object.assign(profileData, { staffId, teacherType, phoneNumber });
     }
 
-    // Student-specific logic for enrollment
-    let studentEnrollmentClassSubjectIds = [];
+    // Student-specific logic
     if (role === 'student') {
       if (!classId || !academicYear) {
         toast.error('Please select a class and academic year for the student');
         return;
       }
 
-      // Collect selected elective class subject IDs
-      const electiveClassSubjectIds = Object.values(selectedElectives).filter(Boolean);
-      studentEnrollmentClassSubjectIds = [...electiveClassSubjectIds];
-
-      // Automatically add core subjects to enrollment list
-      const coreClassSubjectIds = classSubjects
-        .filter(cs => cs.subject && cs.subject.category && cs.subject.category.toLowerCase() === 'core')
-        .map(cs => cs._id);
+      // Pass selected electives to backend for proper enrollment
+      const electiveClassSubjectIds = Object.values(selectedElectives)
+        .flat() // Flatten arrays from multiple groups
+        .filter(Boolean);
       
-      studentEnrollmentClassSubjectIds = [...new Set([...studentEnrollmentClassSubjectIds, ...coreClassSubjectIds])];
-
-
       Object.assign(profileData, {
         dateOfBirth,
         gender,
@@ -171,9 +206,7 @@ const CreateUserPage = () => {
         parentContactIds: parentId ? [parentId] : [],
         classId,
         academicYear,
-        // We are no longer directly saving electiveClassSubjectIds to the student profile
-        // as enrollment will be handled by the separate API call.
-        // The backend `registerUser` might still expect `classId` and `academicYear` for initial student profile setup.
+        electiveClassSubjectIds, // Backend will handle both core and elective assignment
       });
     }
 
@@ -184,30 +217,22 @@ const CreateUserPage = () => {
     setLoading(true);
     try {
       const userRes = await registerUser({ email, password, role, profileData });
-      toast.success('✅ User created successfully!');
-
-      // If the created user is a student, proceed with subject enrollment
-      if (role === 'student' && userRes.user && userRes.user.profileId) {
-        const studentId = userRes.user.profileId; // Assuming profileId is the student's ID
-
-        // Enroll student in all collected class subjects
-        for (const classSubjectId of studentEnrollmentClassSubjectIds) {
-          try {
-            console.log(`Attempting to enroll student ${studentId} in class subject ${classSubjectId} for academic year ${academicYear}`);
-            await enrollStudentInSubject({
-              studentId,
-              classSubjectId,
-              academicYear,
-            });
-            toast.success(`Enrolled in subject: ${classSubjects.find(cs => cs._id === classSubjectId)?.subject?.name}`);
-          } catch (enrollErr) {
-            console.error(`Failed to enroll student ${studentId} in class subject ${classSubjectId}:`, enrollErr);
-            toast.error(`Failed to enroll in a subject: ${classSubjects.find(cs => cs._id === classSubjectId)?.subject?.name || 'Unknown'}.`);
-          }
-        }
+      
+      // Show appropriate success message based on role
+      if (role === 'student' && userRes.subjectAssignment) {
+        // Student creation with subject assignment details
+        const { coreSubjects, electives, totalUniqueSubjects, totalEnrollments } = userRes.subjectAssignment;
+        
+        toast.success(`✅ Student created successfully!`);
+        toast.success(`📚 ${coreSubjects.details}`);
+        toast.success(`🎨 ${electives.details}`);
+        toast.success(`🎓 Total: ${totalUniqueSubjects} subjects, ${totalEnrollments} term enrollments`);
+      } else {
+        // Non-student user creation
+        toast.success('✅ User created successfully!');
       }
 
-      setTimeout(() => navigate('/admin/users'), 1500);
+      setTimeout(() => navigate('/admin/users'), 2000); // Slightly longer delay for multiple toasts
     } catch (err) {
       console.error('Error creating user:', err);
       toast.error(err?.response?.data?.message || '❌ Failed to create user.');
@@ -402,7 +427,7 @@ const CreateUserPage = () => {
                 <div className="pt-2 border-t">
                   <h4 className="font-semibold text-gray-800 mb-3">
                     Select Elective Subjects 
-                    <span className="text-sm text-gray-600 ml-2">(Choose one from each group)</span>
+                    <span className="text-sm text-gray-600 ml-2">(Choose one or more from each group)</span>
                   </h4>
                   
                   {loading ? (
@@ -418,19 +443,33 @@ const CreateUserPage = () => {
                             {group} Group
                             <span className="text-sm text-gray-500 ml-2">({subjects.length} subjects available)</span>
                           </label>
-                          <select
-                            value={formData.selectedElectives[group] || ''}
-                            onChange={(e) => handleElectiveChange(group, e.target.value)}
-                            className="w-full border p-2 rounded focus:border-blue-500 focus:outline-none"
-                          >
-                            <option value="">-- Select One Subject --</option>
-                            {subjects.map((cs) => (
-                              <option key={cs._id} value={cs._id}>
-                                {cs.subject.name}
-                                {cs.subject.code && ` (${cs.subject.code})`}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="space-y-2">
+                            {subjects.map((cs) => {
+                              // Handle both old and new data formats
+                              const isNewFormat = cs.subjectId && cs.name; // New deduplicated format
+                              const key = isNewFormat ? cs.subjectId : cs._id;
+                              const subjectId = isNewFormat ? cs.subjectId : cs._id;
+                              const name = isNewFormat ? cs.name : cs.subject?.name;
+                              const code = isNewFormat ? cs.code : cs.subject?.code;
+                              const currentSelections = formData.selectedElectives[group] || [];
+                              const isSelected = currentSelections.includes(subjectId);
+                              
+                              return (
+                                <label key={key} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => handleElectiveChange(group, subjectId, e.target.checked)}
+                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                  />
+                                  <span className="text-sm text-gray-700">
+                                    {name}
+                                    {code && ` (${code})`}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -453,18 +492,39 @@ const CreateUserPage = () => {
               )}
 
               {/* Show selected electives summary */}
-              {Object.keys(formData.selectedElectives).length > 0 && (
+              {Object.values(formData.selectedElectives).some(arr => Array.isArray(arr) && arr.length > 0) && (
                 <div className="pt-2 border-t">
                   <h4 className="font-semibold text-gray-800 mb-2">Selected Electives</h4>
                   <div className="flex flex-wrap gap-2">
-                    {Object.entries(formData.selectedElectives).map(([group, subjectId]) => {
-                      if (!subjectId) return null;
-                      const subject = classSubjects.find(cs => cs._id === subjectId);
-                      return (
-                        <span key={group} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">
-                          {subject?.subject.name} ({group})
-                        </span>
-                      );
+                    {Object.entries(formData.selectedElectives).map(([group, subjectIds]) => {
+                      if (!Array.isArray(subjectIds) || subjectIds.length === 0) return null;
+                      
+                      return subjectIds.map(subjectId => {
+                        // Find subject name from either new or old data format
+                        let subjectName = 'Unknown Subject';
+                        
+                        // Check new deduplicated format first
+                        if (availableElectives[group]) {
+                          const electiveSubject = availableElectives[group].find(e => e.subjectId === subjectId);
+                          if (electiveSubject) {
+                            subjectName = electiveSubject.name;
+                          }
+                        }
+                        
+                        // Fallback to old format if not found in new format
+                        if (subjectName === 'Unknown Subject') {
+                          const subject = classSubjects.find(cs => cs._id === subjectId);
+                          if (subject?.subject?.name) {
+                            subjectName = subject.subject.name;
+                          }
+                        }
+                        
+                        return (
+                          <span key={`${group}-${subjectId}`} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">
+                            {subjectName} ({group})
+                          </span>
+                        );
+                      });
                     })}
                   </div>
                 </div>

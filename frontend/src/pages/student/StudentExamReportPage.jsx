@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FaBookOpen, FaSpinner, FaPrint, FaFilePdf } from 'react-icons/fa';
-import { getStudentResults } from '../../api/results';
-import { getTerms } from '../../api/terms';
+import { getStudentResults, getStudentExamPosition } from '../../api/results';
+import { getPublicTerms } from '../../api/terms';
 import { useAuth } from '../../context/AuthContext';
 
 const EXAM_TYPES = [
@@ -58,7 +58,8 @@ export default function StudentExamReportPage() {
           .print\\:rounded-none { border-radius: 0 !important; }
           .print\\:break-avoid { page-break-inside: avoid !important; }
           table { border-collapse: collapse !important; width: 100% !important; font-size: 8pt !important; }
-          th, td { border: 0.5pt solid #000 !important; padding: 2px !important; text-align: left !important; }
+          thead, tr { page-break-inside: avoid !important; }
+          th, td { border: 0.5pt solid #000 !important; padding: 1px !important; text-align: left !important; }
           th { background-color: #f0f0f0 !important; font-weight: bold !important; }
           .print-container { height: auto !important; min-height: auto !important; max-height: none !important; }
           .print\\:compact { margin: 0.1rem 0 !important; padding: 0 !important; }
@@ -98,7 +99,7 @@ export default function StudentExamReportPage() {
   useEffect(() => {
     async function loadTerms() {
       try {
-        const data = await getTerms();
+        const data = await getPublicTerms();
         setTerms(data.terms || []);
         if (!params.termId && data.terms?.length) {
           setSelectedTerm(data.terms[0]._id);
@@ -143,32 +144,19 @@ export default function StudentExamReportPage() {
     fetchStudentClass();
   }, [user, selectedTerm, terms, API_BASE_URL]);
 
-  // Fetch student position - Updated to use exam-specific position endpoint
+  // Fetch student position via shared API helper
   useEffect(() => {
     async function fetchStudentPosition() {
       if (!studentClass?.class?._id || !selectedTerm || !user || !selectedExamType) return;
       try {
-        const res = await fetch(
-          `${API_BASE_URL}/student/exam-position/${studentClass.class._id}/${selectedTerm}/${selectedExamType}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        if (!res.ok) {
-          setClassPosition({ position: null, outOf: null });
-          return;
-        }
-        const data = await res.json();
+        const data = await getStudentExamPosition(studentClass.class._id, selectedTerm, selectedExamType);
         setClassPosition({ position: data.position, outOf: data.outOf });
       } catch (err) {
         setClassPosition({ position: null, outOf: null });
       }
     }
     fetchStudentPosition();
-  }, [studentClass, selectedTerm, selectedExamType, user, API_BASE_URL]);
+  }, [studentClass, selectedTerm, selectedExamType, user]);
 
   // Fetch results
   useEffect(() => {

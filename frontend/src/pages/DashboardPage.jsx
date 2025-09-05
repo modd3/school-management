@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getTerms, getTeacherTerms, getCurrentTerm } from '../api/terms';
+import { getTerms, getTeacherTerms, getCurrentTerm, getPublicTerms } from '../api/terms';
 import { getClasses, getTeacherClasses } from '../api/classes';
 import { useNavigate, Link } from 'react-router-dom';
 import {
@@ -39,8 +39,9 @@ const DashboardPage = () => {
             getCurrentTerm().catch(err => ({ success: false, error: err }))
           ]);
         } else {
+          // Use public terms endpoint for students and parents
           [termsRes, currentTermRes] = await Promise.all([
-            getTerms(),
+            getPublicTerms(),
             getCurrentTerm().catch(err => ({ success: false, error: err }))
           ]);
           classesRes = { classes: [] };

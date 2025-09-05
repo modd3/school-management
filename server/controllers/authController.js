@@ -10,7 +10,8 @@ const asyncHandler = require('express-async-handler');
 const ms = require('ms');
 const crypto = require('crypto');
 const sendEmail = require('../utils/email');
-// const assignCoreSubjects = require('../utils/assignCoreSubjects'); // Import the utility for core subjects
+const assignCoreSubjects = require('../utils/assignCoreSubjects'); // Import the utility for core subjects
+const { assignElectiveSubjects, getAvailableElectives } = require('../utils/assignElectiveSubjects'); // Import elective subjects utility
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -49,34 +50,7 @@ const generateToken = (id, role) => {
   });
 };
 
-// Helper function to assign core subjects (if not already in a separate file)
-const assignCoreSubjects = async (studentId, classId, academicYear) => {
-    // Find all core subjects for the given class and academic year
-    const coreClassSubjects = await ClassSubject.find({
-        class: classId,
-        academicYear: academicYear,
-        'subject.category': 'Core', // Assuming subject is populated or you can query by category
-        isActive: true
-    });
-
-    const coreSubjectIds = coreClassSubjects.map(cs => cs._id.toString());
-
-    // Find the student's StudentClass entry
-    const studentClassEntry = await StudentClass.findOne({
-        student: studentId,
-        class: classId,
-        academicYear: academicYear,
-    });
-
-    if (studentClassEntry) {
-        // Add unique core subjects to the existing subjects array
-        studentClassEntry.subjects = [...new Set([...studentClassEntry.subjects.map(String), ...coreSubjectIds])];
-        await studentClassEntry.save();
-    } else {
-        // This case should ideally not be hit if StudentClass is created right before
-        console.warn(`StudentClass entry not found for student ${studentId} in class ${classId} for ${academicYear}. Core subjects not assigned.`);
-    }
-};
+// Note: Using proper utility functions imported from utils/
 
 
 // @desc    Register a new user (Admin-only initially)
@@ -165,27 +139,67 @@ exports.register = asyncHandler(async (req, res) => {
                     subjects: [], // Initialize as empty, will be populated
                 });
 
-                // 3. Assign Core Subjects
-                await assignCoreSubjects(profile._id, classId, academicYear);
+                console.log(`🎓 Creating student: ${firstName} ${lastName} for class ${classId}, year ${academicYear}`);
+                
+                // 3. Assign ALL Core Subjects across all terms (using proper utility)
+                const coreResult = await assignCoreSubjects(profile._id, classId, academicYear);
+                console.log(`📚 Core subjects result:`, coreResult);
 
-                // Re-fetch studentClassEntry to get updated subjects array after core assignment
-                // This is important because assignCoreSubjects modifies it directly.
-                studentClassEntry = await StudentClass.findById(studentClassEntry._id);
-
-                // 4. Assign Elective Subjects (if provided)
-                if (profileData.electiveClassSubjectIds && profileData.electiveClassSubjectIds.length > 0) {
-                    const validElectives = await ClassSubject.find({
-                        _id: { $in: profileData.electiveClassSubjectIds },
-                        class: classId,
-                        academicYear: academicYear,
-                        'subject.category': 'Elective',
-                        isActive: true
-                    }).populate('subject');
-
-                    const validElectiveIds = validElectives.map(cs => cs._id.toString());
-
-                    studentClassEntry.subjects = [...new Set([...studentClassEntry.subjects.map(String), ...validElectiveIds.map(String)])];
-                    await studentClassEntry.save();
+                // 4. Assign Elective Subjects (if provided, otherwise use defaults)
+                let electiveResult = { electivesAssigned: 0, electiveIds: [] };
+                
+                try {
+                    if (profileData.electiveClassSubjectIds && profileData.electiveClassSubjectIds.length > 0) {
+                        console.log(`   Frontend provided ${profileData.electiveClassSubjectIds.length} elective selections`);
+                        console.log(`   Frontend IDs:`, profileData.electiveClassSubjectIds);
+                        
+                        // If frontend provided subject IDs instead of ClassSubject IDs, expand them
+                        console.log(`   📋 Getting available electives for expansion...`);
+                        const availableElectives = await getAvailableElectives(classId, academicYear);
+                        console.log(`   📋 Available electives result:`, {
+                            success: availableElectives.success,
+                            totalElectives: availableElectives.totalElectives,
+                            allElectivesCount: availableElectives.allElectives?.length
+                        });
+                        
+                        const expandedClassSubjectIds = [];
+                        
+                        profileData.electiveClassSubjectIds.forEach(selectedId => {
+                            console.log(`   🔍 Processing selected ID: ${selectedId}`);
+                            // Check if it's a subject ID that needs expansion
+                            const elective = availableElectives.allElectives.find(e => e.subjectId === selectedId);
+                            if (elective) {
+                                // Expand subject ID to all its ClassSubject IDs (across all terms)
+                                console.log(`   ✅ Expanding subject ${elective.subject.name} to ${elective.classSubjectIds.length} ClassSubjects`);
+                                console.log(`      ClassSubject IDs:`, elective.classSubjectIds);
+                                expandedClassSubjectIds.push(...elective.classSubjectIds);
+                            } else {
+                                // Already a ClassSubject ID, use as-is
+                                console.log(`   ⚠️  ID ${selectedId} not found in available electives - treating as ClassSubject ID`);
+                                expandedClassSubjectIds.push(selectedId);
+                            }
+                        });
+                        
+                        console.log(`   📦 Expanded to ${expandedClassSubjectIds.length} ClassSubject assignments:`, expandedClassSubjectIds);
+                        
+                        // Use expanded ClassSubject IDs for assignment
+                        electiveResult = await assignElectiveSubjects(profile._id, classId, academicYear, expandedClassSubjectIds);
+                    } else {
+                        // Use default elective assignment (one from each group)
+                        console.log(`   Using default elective assignment`);
+                        electiveResult = await assignElectiveSubjects(profile._id, classId, academicYear);
+                    }
+                    
+                    console.log(`🎨 Elective subjects result:`, electiveResult);
+                } catch (electiveError) {
+                    console.error(`❌ Error in elective assignment:`, electiveError);
+                    // Set a fallback result so the response still works
+                    electiveResult = { 
+                        electivesAssigned: 0, 
+                        totalClassSubjects: 0,
+                        electiveIds: [],
+                        error: electiveError.message 
+                    };
                 }
 
             } else {
@@ -223,6 +237,46 @@ exports.register = asyncHandler(async (req, res) => {
         await newUser.save();
 
         newUser.profile = profile;
+
+        // For student creation, include subject assignment details in response
+        if (role === 'student' && typeof coreResult !== 'undefined' && typeof electiveResult !== 'undefined') {
+            const token = generateToken(newUser._id, newUser.role);
+            const options = {
+                expires: new Date(Date.now() + ms(process.env.JWT_EXPIRE)),
+                httpOnly: true
+            };
+            if (process.env.NODE_ENV === 'production') {
+                options.secure = true;
+            }
+            
+            return res.status(201)
+               .cookie('token', token, options)
+               .json({
+                    success: true,
+                    token,
+                    user: {
+                        id: newUser._id,
+                        email: newUser.email,
+                        role: newUser.role,
+                        profileId: newUser.profileId,
+                        profile: newUser.profile
+                    },
+                    subjectAssignment: {
+                        coreSubjects: {
+                            assigned: coreResult.coreSubjectsAssigned,
+                            totalClassSubjects: coreResult.totalClassSubjects,
+                            details: `${coreResult.coreSubjectsAssigned} core subjects assigned across all terms (${coreResult.totalClassSubjects} total enrollments)`
+                        },
+                        electives: {
+                            assigned: electiveResult.electivesAssigned,
+                            totalClassSubjects: electiveResult.totalClassSubjects || electiveResult.electivesAssigned,
+                            details: `${electiveResult.electivesAssigned} elective subjects assigned${electiveResult.totalClassSubjects ? ` (${electiveResult.totalClassSubjects} total enrollments)` : ''}`
+                        },
+                        totalUniqueSubjects: coreResult.coreSubjectsAssigned + electiveResult.electivesAssigned,
+                        totalEnrollments: coreResult.totalClassSubjects + (electiveResult.totalClassSubjects || electiveResult.electivesAssigned)
+                    }
+                });
+        }
 
         sendTokenResponse(newUser, 201, res);
 

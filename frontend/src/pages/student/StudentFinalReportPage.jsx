@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaBookOpen, FaSpinner, FaPrint, FaFilePdf, FaCalendarAlt } from 'react-icons/fa';
-import { getTerms } from '../../api/terms';
+import { getPublicTerms } from '../../api/terms';
 import { useAuth } from '../../context/AuthContext';
-import { getClassFinalReports } from '../../api/results';
+import { getClassFinalReports, getStudentClassPosition } from '../../api/results';
 
 export default function StudentFinalReportPage() {
   const params = useParams();
@@ -62,6 +62,7 @@ export default function StudentFinalReportPage() {
           .print\\:rounded-none { border-radius: 0 !important; }
           .print\\:break-avoid { page-break-inside: avoid !important; }
           table { border-collapse: collapse !important; width: 100% !important; font-size: 8pt !important; }
+          thead, tr { page-break-inside: avoid !important; }
           th, td { border: 0.5pt solid #000 !important; padding: 1px !important; text-align: left !important; }
           th { background-color: #f0f0f0 !important; font-weight: bold !important; }
           .print-container { height: auto !important; min-height: auto !important; max-height: none !important; }
@@ -101,7 +102,7 @@ export default function StudentFinalReportPage() {
   useEffect(() => {
     async function loadTerms() {
       try {
-        const data = await getTerms();
+        const data = await getPublicTerms();
         setTerms(data.terms || []);
         if (!params.termId && data.terms && data.terms.length > 0) {
           setSelectedTerm(data.terms[0]._id);
@@ -183,32 +184,19 @@ export default function StudentFinalReportPage() {
     fetchFinalReport();
   }, [selectedTerm, user]);
 
-  // Updated effect to fetch student position using class-position endpoint
+  // Fetch student position via shared API helper
   useEffect(() => {
     async function fetchStudentPosition() {
       if (!studentClass?.class?._id || !selectedTerm || !user) return;
       try {
-        const res = await fetch(
-          `${API_BASE_URL}/student/class-position/${studentClass.class._id}/${selectedTerm}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        if (!res.ok) {
-          setClassPosition({ position: null, outOf: null });
-          return;
-        }
-        const data = await res.json();
+        const data = await getStudentClassPosition(studentClass.class._id, selectedTerm);
         setClassPosition({ position: data.position, outOf: data.outOf });
       } catch (err) {
         setClassPosition({ position: null, outOf: null });
       }
     }
     fetchStudentPosition();
-  }, [studentClass, selectedTerm, user, API_BASE_URL]);
+  }, [studentClass, selectedTerm, user]);
 
   useEffect(() => {
     if (selectedTerm && selectedTerm !== params.termId) {
