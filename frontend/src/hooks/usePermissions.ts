@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useAuth } from '@/hooks';
+import useAuth from './useAuth';
 
 // Define permission constants
 export const PERMISSIONS = {

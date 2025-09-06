@@ -5,6 +5,7 @@ import { authApi } from './api/authApi';
 import { usersApi } from './api/usersApi';
 import { academicApi } from './api/academicApi';
 import { resultsApi } from './api/resultsApi';
+import { classSubjectsApi } from './api/classSubjectsApi';
 import { attendanceApi } from './api/attendanceApi';
 import { timetableApi } from './api/timetableApi';
 import { dashboardApi } from './api/dashboardApi';

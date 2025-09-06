@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   FaClipboardList, FaPlus, FaSearch, FaSave, FaEdit, FaEye,
   FaChartLine, FaFileDownload, FaSyncAlt, FaCheck
 } from 'react-icons/fa';
-import { useDocumentTitle, useAuth } from '@/hooks';
-import { useGetStudentsQuery } from '@/store/api/usersApi';
+import { useDocumentTitle } from '@/hooks';
+import { useGetMyClassSubjectsQuery, useGetStudentsInClassSubjectQuery } from '@/store/api/classSubjectsApi';
+import { useGetActiveAcademicCalendarQuery } from '@/store/api/academicApi';
 import { useCreateResultMutation, useCreateBulkResultsMutation } from '@/store/api/resultsApi';
 import { toast } from 'react-toastify';
 
@@ -23,41 +24,71 @@ interface ResultFormData {
 const ResultsEntryPage: React.FC = () => {
   useDocumentTitle('Enter Results');
   
-  const [selectedClass, setSelectedClass] = useState<string>('');
-  const [selectedSubject, setSelectedSubject] = useState<string>('');
+  const [selectedClassSubject, setSelectedClassSubject] = useState<string>('');
   const [selectedTerm, setSelectedTerm] = useState<number>(1);
   const [selectedExamType, setSelectedExamType] = useState<'cat1' | 'cat2' | 'endterm'>('cat1');
-  const [academicYear] = useState<string>('2024');
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<ResultFormData[]>([]);
 
+  // Get academic calendar for current year and terms
+  const { data: academicCalendarData, isLoading: academicCalendarLoading } = useGetActiveAcademicCalendarQuery();
+  const academicYear = academicCalendarData?.data?.academicYear || new Date().getFullYear().toString();
+  
+  // Get teacher's assigned class-subjects
+  const { 
+    data: classSubjectsData, 
+    isLoading: classSubjectsLoading,
+    refetch: refetchClassSubjects 
+  } = useGetMyClassSubjectsQuery({ 
+    academicYear,
+    termNumber: selectedTerm
+  });
+  
+  // Get students for selected class-subject
   const { 
     data: studentsData, 
     isLoading: studentsLoading,
     refetch: refetchStudents 
-  } = useGetStudentsQuery({ 
-    page: 1, 
-    limit: 100,
-    class: selectedClass || undefined,
-    search: search.trim() || undefined
-  });
+  } = useGetStudentsInClassSubjectQuery(
+    { 
+      classSubjectId: selectedClassSubject, 
+      academicYear 
+    },
+    { 
+      skip: !selectedClassSubject || !academicYear 
+    }
+  );
 
   // RTK Query mutations
   const [createBulkResults, { isLoading: isSubmitting }] = useCreateBulkResultsMutation();
 
-  // Mock data for demonstration
-  const classes = [
-    { _id: '1', name: 'Grade 1A', grade: 1 },
-    { _id: '2', name: 'Grade 2B', grade: 2 },
-    { _id: '3', name: 'Grade 3C', grade: 3 },
-  ];
-
-  const subjects = [
-    { _id: '1', name: 'Mathematics', code: 'MATH' },
-    { _id: '2', name: 'English', code: 'ENG' },
-    { _id: '3', name: 'Science', code: 'SCI' },
-    { _id: '4', name: 'Social Studies', code: 'SS' },
-  ];
+  // Derive unique classes and subjects from teacher's assignments
+  const { classes, subjects } = useMemo(() => {
+    const classSubjects = classSubjectsData?.data?.classSubjects || [];
+    
+    const uniqueClasses = Array.from(
+      new Map(classSubjects.map(cs => [cs.class._id, cs.class])).values()
+    );
+    
+    const uniqueSubjects = Array.from(
+      new Map(classSubjects.map(cs => [cs.subject._id, cs.subject])).values()
+    );
+    
+    return { classes: uniqueClasses, subjects: uniqueSubjects };
+  }, [classSubjectsData]);
+  
+  // Get available terms from academic calendar
+  const availableTerms = useMemo(() => {
+    const calendar = academicCalendarData?.data;
+    if (!calendar?.terms) return [{ number: 1, label: 'Term 1' }, { number: 2, label: 'Term 2' }, { number: 3, label: 'Term 3' }];
+    
+    return calendar.terms.map(term => ({
+      number: term.termNumber,
+      label: `Term ${term.termNumber}`,
+      startDate: term.startDate,
+      endDate: term.endDate
+    }));
+  }, [academicCalendarData]);
 
   const examTypes = [
     { value: 'cat1', label: 'CAT 1', maxMarks: 30 },
@@ -70,21 +101,27 @@ const ResultsEntryPage: React.FC = () => {
     return examType?.maxMarks || 100;
   };
 
+  // Get selected class-subject details
+  const selectedClassSubjectDetails = useMemo(() => {
+    const classSubjects = classSubjectsData?.data?.classSubjects || [];
+    return classSubjects.find(cs => cs._id === selectedClassSubject);
+  }, [classSubjectsData, selectedClassSubject]);
+  
   // Initialize results when dependencies change
   useEffect(() => {
-    const students = studentsData?.data || [];
+    const students = studentsData?.data?.students || [];
     
-    if (!selectedClass || !selectedSubject || !students.length) {
+    if (!selectedClassSubject || !selectedClassSubjectDetails || !students.length) {
       setResults([]);
       return;
     }
 
     const newResults: ResultFormData[] = students.map(student => ({
       studentId: student._id,
-      subjectId: selectedSubject,
-      classId: selectedClass,
+      subjectId: selectedClassSubjectDetails.subject._id,
+      classId: selectedClassSubjectDetails.class._id,
       academicYear,
-      termNumber: selectedTerm,
+      termNumber: parseInt(selectedTerm.toString()),
       examType: selectedExamType,
       marks: 0,
       maxMarks: getCurrentMaxMarks(),
@@ -92,7 +129,7 @@ const ResultsEntryPage: React.FC = () => {
     }));
 
     setResults(newResults);
-  }, [selectedClass, selectedSubject, selectedTerm, selectedExamType, studentsData?.data, academicYear]);
+  }, [selectedClassSubject, selectedClassSubjectDetails, selectedTerm, selectedExamType, studentsData?.data?.students, academicYear]);
 
   const handleMarksChange = (studentId: string, marks: number) => {
     setResults(prev => 
@@ -115,8 +152,8 @@ const ResultsEntryPage: React.FC = () => {
   };
 
   const handleSubmitResults = async () => {
-    if (!selectedClass || !selectedSubject) {
-      toast.error('Please select class and subject');
+    if (!selectedClassSubject || !selectedClassSubjectDetails) {
+      toast.error('Please select a class-subject combination');
       return;
     }
 
@@ -177,7 +214,10 @@ const ResultsEntryPage: React.FC = () => {
         </div>
         <div className="flex gap-3">
           <button
-            onClick={() => refetchStudents()}
+            onClick={() => {
+              refetchClassSubjects();
+              refetchStudents();
+            }}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
           >
             <FaSyncAlt className="w-4 h-4 mr-2" />
@@ -191,37 +231,27 @@ const ResultsEntryPage: React.FC = () => {
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
           Selection Criteria
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Class
+              Class & Subject
             </label>
             <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
+              value={selectedClassSubject}
+              onChange={(e) => setSelectedClassSubject(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={classSubjectsLoading}
             >
-              <option value="">Select Class</option>
-              {classes.map(cls => (
-                <option key={cls._id} value={cls._id}>{cls.name}</option>
+              <option value="">Select Class & Subject</option>
+              {(classSubjectsData?.data?.classSubjects || []).map(cs => (
+                <option key={cs._id} value={cs._id}>
+                  {cs.class.name} - {cs.subject.name}
+                </option>
               ))}
             </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Subject
-            </label>
-            <select
-              value={selectedSubject}
-              onChange={(e) => setSelectedSubject(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Select Subject</option>
-              {subjects.map(subject => (
-                <option key={subject._id} value={subject._id}>{subject.name}</option>
-              ))}
-            </select>
+            {classSubjectsLoading && (
+              <div className="mt-1 text-xs text-gray-500">Loading assignments...</div>
+            )}
           </div>
 
           <div>
@@ -232,11 +262,15 @@ const ResultsEntryPage: React.FC = () => {
               value={selectedTerm}
               onChange={(e) => setSelectedTerm(parseInt(e.target.value))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={academicCalendarLoading}
             >
-              <option value={1}>Term 1</option>
-              <option value={2}>Term 2</option>
-              <option value={3}>Term 3</option>
+              {availableTerms.map(term => (
+                <option key={term.number} value={term.number}>{term.label}</option>
+              ))}
             </select>
+            {academicCalendarLoading && (
+              <div className="mt-1 text-xs text-gray-500">Loading terms...</div>
+            )}
           </div>
 
           <div>
@@ -257,12 +291,12 @@ const ResultsEntryPage: React.FC = () => {
           </div>
         </div>
 
-        {selectedClass && selectedSubject && (
+        {selectedClassSubject && selectedClassSubjectDetails && (
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-700">
               <FaCheck className="inline w-4 h-4 mr-2" />
-              Ready to enter marks for <strong>{subjects.find(s => s._id === selectedSubject)?.name}</strong> 
-              {' '}- <strong>{classes.find(c => c._id === selectedClass)?.name}</strong>
+              Ready to enter marks for <strong>{selectedClassSubjectDetails.subject.name}</strong> 
+              {' '}- <strong>{selectedClassSubjectDetails.class.name}</strong>
               {' '}- <strong>Term {selectedTerm}</strong>
               {' '}- <strong>{examTypes.find(et => et.value === selectedExamType)?.label}</strong>
             </p>
@@ -271,7 +305,7 @@ const ResultsEntryPage: React.FC = () => {
       </div>
 
       {/* Search and Filters */}
-      {selectedClass && selectedSubject && (
+      {selectedClassSubject && selectedClassSubjectDetails && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1">
@@ -310,7 +344,7 @@ const ResultsEntryPage: React.FC = () => {
       )}
 
       {/* Results Entry Table */}
-      {selectedClass && selectedSubject && (
+      {selectedClassSubject && selectedClassSubjectDetails && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -373,7 +407,7 @@ const ResultsEntryPage: React.FC = () => {
                       </td>
                     </tr>
                   ))
-                ) : (studentsData?.data || []).length === 0 ? (
+                ) : (studentsData?.data?.students || []).length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center">
                       <FaClipboardList className="mx-auto h-12 w-12 text-gray-400" />
@@ -384,7 +418,7 @@ const ResultsEntryPage: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  (studentsData?.data || []).map((student) => {
+                  (studentsData?.data?.students || []).map((student) => {
                     const result = results.find(r => r.studentId === student._id);
                     const percentage = result ? calculatePercentage(result.marks, result.maxMarks) : 0;
                     const grade = getGradeFromPercentage(percentage);
@@ -460,12 +494,12 @@ const ResultsEntryPage: React.FC = () => {
       )}
 
       {/* Summary */}
-      {selectedClass && selectedSubject && results.length > 0 && (
+      {selectedClassSubject && selectedClassSubjectDetails && results.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Summary</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{(studentsData?.data || []).length}</div>
+              <div className="text-2xl font-bold text-blue-600">{(studentsData?.data?.students || []).length}</div>
               <div className="text-sm text-gray-500">Total Students</div>
             </div>
             <div className="text-center">
