@@ -183,6 +183,50 @@ export const resultsApi = baseApi.injectEndpoints({
       invalidatesTags: ['Result', 'Progress'],
     }),
     
+    // Teacher-specific endpoints
+    getResultsByTeacher: builder.query<
+      PaginatedResponse<Result[]>,
+      {
+        teacherId?: string;
+        academicYear?: string;
+        term?: string;
+        classId?: string;
+        subjectId?: string;
+      }
+    >({
+      query: (params) => ({
+        url: '/teacher/results/by-teacher',
+        params,
+      }),
+      providesTags: ['Result'],
+    }),
+    
+    // Parent-specific endpoints
+    getParentChildren: builder.query<
+      ApiResponse<any[]>,
+      string
+    >({
+      query: (parentId) => `/parent/children/${parentId}`,
+      providesTags: ['Student'],
+    }),
+    
+    getChildProgress: builder.query<
+      ApiResponse<any>,
+      {
+        parentId: string;
+        studentId: string;
+        academicYear: string;
+      }
+    >({
+      query: ({ parentId, studentId, academicYear }) => ({
+        url: `/parent/child-progress/${studentId}`,
+        params: { academicYear },
+      }),
+      providesTags: (result, error, { studentId }) => [
+        { type: 'Progress', id: studentId }
+      ],
+    }),
+    
     // Analytics
     getResultsAnalytics: builder.query<
       ApiResponse<{
@@ -233,6 +277,7 @@ export const {
   
   useCreateBulkResultsMutation,
   useGetResultsEnteredByTeacherQuery,
+  useGetResultsByTeacherQuery,
   
   useGetClassExamResultsQuery,
   useGetClassFinalReportsQuery,
@@ -244,6 +289,9 @@ export const {
   useGenerateProgressReportsMutation,
   
   usePublishTermResultsMutation,
+  
+  useGetParentChildrenQuery,
+  useGetChildProgressQuery,
   
   useGetResultsAnalyticsQuery,
   useGetPerformanceTrendsQuery,

@@ -16,65 +16,33 @@ const LoginPage: React.FC = () => {
   
   // Redirect if already authenticated
   useEffect(() => {
-    console.log('Auth state changed:', { isAuthenticated, user });
     if (isAuthenticated && user) {
-      console.log('User is authenticated, redirecting to dashboard...');
       navigate('/dashboard', { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
   
-  // Debug function to test hooks
-  const testHooks = () => {
-    console.log('Testing hooks:', { user, isAuthenticated, isLoading });
-    notifySuccess('Hooks are working!');
-  };
-  
-  // Test API call directly
-  const testAPI = async () => {
-    try {
-      console.log('Testing direct API call...');
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: 'test@example.com', password: 'test123' }),
-      });
-      const data = await response.json();
-      console.log('Direct API response:', data);
-      notifySuccess('Direct API call worked!');
-    } catch (error) {
-      console.error('Direct API error:', error);
-      notifyError('Direct API call failed');
-    }
-  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Form submitted with:', { email, password });
     
     if (isSubmitting || isLoading) {
-      console.log('Already submitting or loading, skipping');
       return;
     }
     
-    console.log('Starting login process...');
     setIsSubmitting(true);
     
     try {
-      console.log('Calling login function...');
       const result = await login({ email, password });
-      console.log('Login successful:', result);
       notifySuccess('Login successful! Redirecting...');
     } catch (error: any) {
-      console.error('Login error:', error);
       notifyError(
         error?.data?.message || 
         error?.message || 
         'Login failed. Please check your credentials.'
       );
     } finally {
-      console.log('Login process finished');
       setIsSubmitting(false);
     }
   };
@@ -138,27 +106,7 @@ const LoginPage: React.FC = () => {
         </button>
       </form>
       
-      {/* Debug buttons */}
-      <div className="mt-6 space-y-2 border-t pt-4 border-gray-200">
-        <p className="text-xs text-gray-500 mb-2">Debug Tools:</p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={testHooks}
-            className="flex-1 bg-green-500 text-white py-2 px-3 rounded text-xs hover:bg-green-600"
-          >
-            Test Hooks
-          </button>
-          <button
-            type="button"
-            onClick={testAPI}
-            className="flex-1 bg-yellow-500 text-white py-2 px-3 rounded text-xs hover:bg-yellow-600"
-          >
-            Test API
-          </button>
-        </div>
-      </div>
-      
+    
       <div className="mt-6 space-y-3">
         <Link
           to="/forgot-password"

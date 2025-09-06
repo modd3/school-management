@@ -14,7 +14,28 @@ import {
 export const usersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     
-    // Get all users with pagination and filters
+    // Student profile
+    getStudentProfile: builder.query<
+      ApiResponse<any>,
+      string
+    >({
+      query: (studentId) => `/student/profile/${studentId}`,
+      providesTags: (result, error, studentId) => [{ type: 'User', id: studentId }],
+    }),
+    
+    updateStudentProfile: builder.mutation<
+      ApiResponse<any>,
+      { id: string; data: any }
+    >({
+      query: ({ id, data }) => ({
+        url: `/student/profile/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'User', id }],
+    }),
+    
+    // Get all users
     getUsers: builder.query<
       PaginatedResponse<User[]>,
       { page?: number; limit?: number; role?: string; search?: string }
@@ -206,6 +227,9 @@ export const usersApi = baseApi.injectEndpoints({
 });
 
 export const {
+  useGetStudentProfileQuery,
+  useUpdateStudentProfileMutation,
+  
   useGetUsersQuery,
   useGetUserByIdQuery,
   useUpdateUserMutation,

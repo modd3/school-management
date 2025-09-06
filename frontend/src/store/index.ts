@@ -4,6 +4,7 @@ import { baseApi } from './api/baseApi';
 import { authApi } from './api/authApi';
 import { usersApi } from './api/usersApi';
 import { academicApi } from './api/academicApi';
+import { classSubjectsApi } from './api/classSubjectsApi';
 import { resultsApi } from './api/resultsApi';
 import { classSubjectsApi } from './api/classSubjectsApi';
 import { attendanceApi } from './api/attendanceApi';

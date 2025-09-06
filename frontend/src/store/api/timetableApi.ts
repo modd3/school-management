@@ -9,7 +9,23 @@ import {
 export const timetableApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     
-    // Timetable Management
+    // Get teacher timetable
+    getTeacherTimetable: builder.query<
+      ApiResponse<any>,
+      {
+        teacherId: string;
+        week?: string;
+        academicYear?: string;
+      }
+    >({
+      query: ({ teacherId, week, academicYear }) => ({
+        url: `/teacher/timetable/${teacherId}`,
+        params: { week, academicYear },
+      }),
+      providesTags: ['Timetable'],
+    }),
+    
+    // Get timetables
     getTimetables: builder.query<
       PaginatedResponse<Timetable[]>, 
       { 
@@ -96,32 +112,6 @@ export const timetableApi = baseApi.injectEndpoints({
       ],
     }),
     
-    // Teacher timetable
-    getTeacherTimetable: builder.query<
-      ApiResponse<{
-        teacherId: string;
-        teacherName: string;
-        periods: Array<TimetablePeriod & {
-          className: string;
-          classId: string;
-        }>;
-        weeklySchedule: Record<string, TimetablePeriod[]>;
-      }>,
-      { 
-        teacherId: string; 
-        academicYear?: string; 
-        termNumber?: number;
-        dayOfWeek?: string;
-      }
-    >({
-      query: ({ teacherId, academicYear, termNumber, dayOfWeek }) => ({
-        url: `/teacher/timetable/${teacherId}`,
-        params: { academicYear, termNumber, dayOfWeek },
-      }),
-      providesTags: (result, error, { teacherId }) => [
-        { type: 'Timetable', id: `teacher-${teacherId}` }
-      ],
-    }),
     
     // Student timetable (via class)
     getStudentTimetable: builder.query<

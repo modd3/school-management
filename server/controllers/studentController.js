@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Class = require('../models/Class');
 const Parent = require('../models/Parent');
 const StudentClass = require('../models/StudentClass');
+const assignCoreSubjects = require('../utils/assignCoreSubjects');
 const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
 

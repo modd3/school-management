@@ -530,11 +530,25 @@ const getClassAnalytics = asyncHandler(async (req, res) => {
 // Helper Functions
 
 async function updateStudentProgress(studentId, academicYear) {
-    // This would be implemented to update the StudentProgress model
-    // Can be made into a background job for better performance
     try {
-        // Implementation would go here
-        console.log(`Updating progress for student ${studentId} in ${academicYear}`);
+        const StudentProgress = require('../models/StudentProgress');
+        const { generateStudentProgress } = require('./progressController');
+        
+        // Find the student
+        const student = await Student.findById(studentId);
+        if (!student) {
+            console.log(`Student ${studentId} not found, skipping progress update.`);
+            return;
+        }
+        
+        // Generate updated progress report
+        const progressReport = await generateStudentProgress(academicYear, student);
+        
+        if (progressReport) {
+            console.log(`Progress updated for student ${student.firstName} ${student.lastName} in ${academicYear}`);
+        } else {
+            console.log(`No progress data to update for student ${studentId} in ${academicYear}`);
+        }
     } catch (error) {
         console.error('Error updating student progress:', error);
     }

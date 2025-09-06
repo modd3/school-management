@@ -12,7 +12,16 @@ import {
 export const academicApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     
-    // Classes
+    // Get class students
+    getClassStudents: builder.query<
+      ApiResponse<any[]>,
+      string
+    >({
+      query: (classId) => `/admin/classes/${classId}/students`,
+      providesTags: ['Student'],
+    }),
+    
+    // Get academic years
     getClasses: builder.query<PaginatedResponse<Class[]>, { page?: number; limit?: number; search?: string }>({
       query: (params) => ({
         url: '/admin/classes',
@@ -103,6 +112,26 @@ export const academicApi = baseApi.injectEndpoints({
       providesTags: ['AcademicCalendar'],
     }),
     
+    // Get terms from active academic calendar
+    getTerms: builder.query<
+      ApiResponse<{ terms: Array<{ _id: string; name: string; termNumber: number; academicYear: string }> }>,
+      void
+    >({
+      query: () => '/admin/academic/calendar/active',
+      transformResponse: (response: ApiResponse<AcademicCalendar>) => ({
+        ...response,
+        data: {
+          terms: response.data?.terms?.map(term => ({
+            _id: term._id || `term-${term.termNumber}`,
+            name: term.name,
+            termNumber: term.termNumber,
+            academicYear: response.data.academicYear
+          })) || []
+        }
+      }),
+      providesTags: ['AcademicCalendar'],
+    }),
+    
     createAcademicCalendar: builder.mutation<ApiResponse<AcademicCalendar>, Partial<AcademicCalendar>>({
       query: (data) => ({
         url: '/admin/academic/calendar',
@@ -156,6 +185,8 @@ export const academicApi = baseApi.injectEndpoints({
 });
 
 export const {
+  useGetClassStudentsQuery,
+  
   useGetClassesQuery,
   useGetClassByIdQuery,
   useCreateClassMutation,
@@ -170,6 +201,7 @@ export const {
   
   useGetAcademicCalendarsQuery,
   useGetActiveAcademicCalendarQuery,
+  useGetTermsQuery,
   useCreateAcademicCalendarMutation,
   
   useGetGradingScalesQuery,

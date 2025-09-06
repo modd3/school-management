@@ -23,6 +23,17 @@ import StudentsPage from './pages/admin/StudentsPage';
 
 // Teacher pages
 import ResultsEntryPage from './pages/teacher/ResultsEntryPage';
+import MyResultsPage from './pages/teacher/MyResultsPage';
+import MySubjectsPage from './pages/teacher/MySubjectsPage';
+import AttendancePage from './pages/teacher/AttendancePage';
+import TimetablePage from './pages/teacher/TimetablePage';
+
+// Student pages
+import StudentResultsPage from './pages/student/StudentResultsPage';
+import StudentProfilePage from './pages/student/StudentProfilePage';
+
+// Parent pages
+import ChildrenProgressPage from './pages/parent/ChildrenProgressPage';
 
 const App: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -83,20 +94,20 @@ const App: React.FC = () => {
             
             {/* Teacher Routes */}
             <Route path="/teacher/results/enter" element={<ResultsEntryPage />} />
-            <Route path="/teacher/results/entered-by-me" element={<div className="p-6"><h1>My Results - Coming Soon</h1></div>} />
-            <Route path="/teacher/subjects" element={<div className="p-6"><h1>My Subjects - Coming Soon</h1></div>} />
-            <Route path="/teacher/attendance" element={<div className="p-6"><h1>Mark Attendance - Coming Soon</h1></div>} />
-            <Route path="/teacher/timetable" element={<div className="p-6"><h1>My Timetable - Coming Soon</h1></div>} />
+            <Route path="/teacher/results/entered-by-me" element={<MyResultsPage />} />
+            <Route path="/teacher/subjects" element={<MySubjectsPage />} />
+            <Route path="/teacher/attendance" element={<AttendancePage />} />
+            <Route path="/teacher/timetable" element={<TimetablePage />} />
             <Route path="/teacher/reports" element={<div className="p-6"><h1>Class Reports - Coming Soon</h1></div>} />
             
             {/* Student Routes */}
-            <Route path="/student/results" element={<div className="p-6"><h1>My Results - Coming Soon</h1></div>} />
+            <Route path="/student/results" element={<StudentResultsPage />} />
             <Route path="/student/reports" element={<div className="p-6"><h1>Report Cards - Coming Soon</h1></div>} />
             <Route path="/student/timetable" element={<div className="p-6"><h1>Class Timetable - Coming Soon</h1></div>} />
-            <Route path="/student/profile" element={<div className="p-6"><h1>My Profile - Coming Soon</h1></div>} />
+            <Route path="/student/profile" element={<StudentProfilePage />} />
             
             {/* Parent Routes */}
-            <Route path="/parent/children-progress" element={<div className="p-6"><h1>Children Progress - Coming Soon</h1></div>} />
+            <Route path="/parent/children-progress" element={<ChildrenProgressPage />} />
             <Route path="/parent/reports" element={<div className="p-6"><h1>Report Cards - Coming Soon</h1></div>} />
             <Route path="/parent/communications" element={<div className="p-6"><h1>School Communications - Coming Soon</h1></div>} />
           </Route>

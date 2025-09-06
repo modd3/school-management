@@ -176,7 +176,7 @@ describe('🏫 School Management System - Role-based Functionality Tests', () =>
             firstName: 'Mary',
             lastName: 'Parent',
             email: 'parent@test.com',
-            phone: '+254712345678',
+            phoneNumber: '+254712345678',
             userId: parentUser._id,
             children: [studentProfile._id]
         });

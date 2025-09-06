@@ -9,7 +9,40 @@ import {
 export const attendanceApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     
-    // Attendance Management
+    // Mark attendance
+    markAttendance: builder.mutation<
+      ApiResponse<any>,
+      {
+        classId: string;
+        date: string;
+        attendanceRecords: Array<{
+          studentId: string;
+          status: 'present' | 'absent' | 'late' | 'excused';
+          remarks?: string;
+        }>;
+      }
+    >({
+      query: (data) => ({
+        url: '/teacher/attendance',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Attendance'],
+    }),
+    
+    // Get today's attendance
+    getTodayAttendance: builder.query<
+      ApiResponse<any[]>,
+      { classId: string; date: string }
+    >({
+      query: ({ classId, date }) => ({
+        url: '/teacher/attendance/today',
+        params: { classId, date },
+      }),
+      providesTags: ['Attendance'],
+    }),
+    
+    // Get attendance records
     getAttendance: builder.query<
       PaginatedResponse<Attendance[]>, 
       { 
@@ -36,24 +69,6 @@ export const attendanceApi = baseApi.injectEndpoints({
       providesTags: (result, error, id) => [{ type: 'Attendance', id }],
     }),
     
-    // Mark attendance (for teachers)
-    markAttendance: builder.mutation<
-      ApiResponse<Attendance>,
-      {
-        classId: string;
-        subjectId: string;
-        date: string;
-        records: AttendanceRecord[];
-        remarks?: string;
-      }
-    >({
-      query: (data) => ({
-        url: '/teacher/attendance',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: ['Attendance'],
-    }),
     
     // Update attendance record
     updateAttendance: builder.mutation<
@@ -312,6 +327,7 @@ export const {
   useGetAttendanceByIdQuery,
   
   useMarkAttendanceMutation,
+  useGetTodayAttendanceQuery,
   useUpdateAttendanceMutation,
   useDeleteAttendanceMutation,
   
